@@ -21,7 +21,8 @@ int main(int argc, char** argv) {
   ros::NodeHandle n;
 
   // subscribe to map updates
-  ros::Subscriber sub_map = n.subscribe("/occ_map", 1, setMap);
+  //ros::Subscriber sub_map = n.subscribe("/occ_map", 1, setMap);
+  ros::Subscriber sub_map = n.subscribe("/map", 1, setMap);
   tf::Pose tfPose;
 
 
