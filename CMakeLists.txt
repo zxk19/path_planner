@@ -31,6 +31,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/smoother.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/visualize.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/dubins.cpp #Andrew Walker
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/reeds_shepp.cpp #Andrew Walker
     ${CMAKE_CURRENT_SOURCE_DIR}/src/dynamicvoronoi.cpp #Boris Lau, Christoph Sprunk, Wolfram Burgard
     ${CMAKE_CURRENT_SOURCE_DIR}/src/bucketedqueue.cpp #Boris Lau, Christoph Sprunk, Wolfram Burgard
     )
@@ -49,6 +50,7 @@ set(HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/lookup.h
     ${CMAKE_CURRENT_SOURCE_DIR}/include/gradient.h #Andrew Noske
     ${CMAKE_CURRENT_SOURCE_DIR}/include/dubins.h #Andrew Walker
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/reeds_shepp.h #Andrew Walker
     ${CMAKE_CURRENT_SOURCE_DIR}/include/dynamicvoronoi.h #Boris Lau, Christoph Sprunk, Wolfram Burgard
     ${CMAKE_CURRENT_SOURCE_DIR}/include/bucketedqueue.h #Boris Lau, Christoph Sprunk, Wolfram Burgard
     ${CMAKE_CURRENT_SOURCE_DIR}/include/point.h #Boris Lau, Christoph Sprunk, Wolfram Burgard
