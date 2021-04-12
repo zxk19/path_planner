@@ -68,6 +68,13 @@ inline void dubinsLookup(float* lookup) {
 //                                   COLLISION LOOKUP
 //###################################################
 
+/* This function builds a lookup for the cells that the ego vehicle occupies when the vehicle is located at different 
+discrete locations within a cell. The cell is a 1m-by-1m square, the default code set 10*10 discrete points to 
+represent all possible positions of the vehicle center in this cell. Then the resolution of possible heading angles
+is set to 5 degrees. This lookup enumerates the different positions and poses of the vehicle in one cell (10*10*72)
+and map them with the vehicle occupied cells (number and relative index to the center cell)
+*/
+
 // _____________
 // SIGN FUNCTION
 inline int sign(double x) {
@@ -163,7 +170,7 @@ inline void collisionLookup(Constants::config* lookup) {
     p[3].y = c.y - Constants::width / 2 / cSize;
 
     for (int o = 0; o < Constants::headings; ++o) {
-      if (DEBUG) { std::cout << "\ndegrees: " << theta * 180.f / M_PI << std::endl; }
+      //if (DEBUG) { std::cout << "\ndegrees: " << theta * 180.f / M_PI << std::endl; }
 
       // initialize cSpace
       for (int i = 0; i < size; ++i) {

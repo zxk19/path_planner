@@ -183,7 +183,6 @@ Node3D* Algorithm::hybridAStar(Node3D& start,
           nSucc = ReedsSheppShot(*nPred, goal, configurationSpace);
           if (nSucc != nullptr && *nSucc == goal) {
             //DEBUG
-            // std::cout << "max diff " << max << std::endl;
             return nSucc;
           }
         }
@@ -192,6 +191,7 @@ Node3D* Algorithm::hybridAStar(Node3D& start,
         // SEARCH WITH FORWARD SIMULATION
         for (int i = 0; i < dir; i++) {
           // create possible successor
+          // std::cout << "Searching direction: " << i <<std::endl;
           nSucc = nPred->createSuccessor(i);
           // set index of the successor
           iSucc = nSucc->setIdx(width, height);
@@ -574,7 +574,7 @@ Node3D* ReedsSheppShot(Node3D& start, const Node3D& goal, CollisionDetection& co
       x += Constants::dubinsStepSize;
       i++;
     } else {
-      // std::cout << "Dubins shot collided, discarding the path" << "\n";
+      // std::cout << "Reeds Shepp shot collided, discarding the path" << "\n";
       // delete all nodes
       delete [] RS_Nodes;
       return nullptr;
@@ -582,5 +582,6 @@ Node3D* ReedsSheppShot(Node3D& start, const Node3D& goal, CollisionDetection& co
   }
 
   std::cout << "Reeds Shepp shot connected, returning the path" << "\n";
+
   return &RS_Nodes[i - 1];
 }

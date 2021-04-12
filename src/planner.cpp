@@ -197,11 +197,13 @@ void Planner::plan() {
     // CLEAR THE PATH
     path.clear();
     smoothedPath.clear();
-    // FIND THE PATH
+    // FIND THE PATH    
+    // nSolution is the address of an Node 3D object (goal?). Also the array nodes3D contains all the expanded nodes.
     Node3D* nSolution = Algorithm::hybridAStar(nStart, nGoal, nodes3D, nodes2D, width, height, configurationSpace, dubinsLookup, visualization);
-    // TRACE THE PATH
+    //std::cout << "nSolution is: " << nSolution << endl;
+    // TRACE THE PATH, returns an array of Node3D objects, smoother.path (std::vector<Node3D>), no smoothing yet.
     smoother.tracePath(nSolution);
-    // CREATE THE UPDATED PATH
+    // CREATE THE UPDATED PATH, returns the array of segments, nodes, and vehicle bounding box
     path.updatePath(smoother.getPath());
     // SMOOTH THE PATH
     //smoother.smoothPath(voronoiDiagram);

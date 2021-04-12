@@ -30,13 +30,13 @@ namespace Constants {
 // CONFIG FLAGS
 
 /// A flag for additional debugging output via `std::cout`
-static const bool coutDEBUG = false;
+static const bool coutDEBUG = true;
 /// A flag for the mode (true = manual; false = dynamic). Manual for static map or dynamic for dynamic map.
 static const bool manual = true;
 /// A flag for the visualization of 3D nodes (true = on; false = off)
-static const bool visualization = false && manual;
+static const bool visualization = true && manual;
 /// A flag for the visualization of 2D nodes (true = on; false = off)
-static const bool visualization2D = false && manual;
+static const bool visualization2D = true && manual;
 /// A flag to toggle reversing (true = on; false = off)
 static const bool reverse = true;
 /// A flag to toggle the connection of the path via Dubin's shot (true = on; false = off)

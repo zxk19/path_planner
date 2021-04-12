@@ -4,7 +4,7 @@ using namespace HybridAStar;
 
 // CONSTANT VALUES
 // possible directions
-const int Node3D::dir = 3;
+const int Node3D::dir = 6;
 // possible movements
 //const float Node3D::dy[] = { 0,        -0.032869,  0.032869};
 //const float Node3D::dx[] = { 0.62832,   0.62717,   0.62717};
