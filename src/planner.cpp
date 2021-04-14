@@ -206,7 +206,7 @@ void Planner::plan() {
     // CREATE THE UPDATED PATH, returns the array of segments, nodes, and vehicle bounding box
     path.updatePath(smoother.getPath());
     // SMOOTH THE PATH
-    //smoother.smoothPath(voronoiDiagram);
+    smoother.smoothPath(voronoiDiagram);
     // CREATE THE UPDATED PATH
     smoothedPath.updatePath(smoother.getPath());
     ros::Time t1 = ros::Time::now();
@@ -215,9 +215,9 @@ void Planner::plan() {
 
     // _________________________________
     // PUBLISH THE RESULTS OF THE SEARCH
-    path.publishPath();
-    path.publishPathNodes();
-    path.publishPathVehicles();
+    //path.publishPath();
+    //path.publishPathNodes();
+    //path.publishPathVehicles();
     smoothedPath.publishPath();
     smoothedPath.publishPathNodes();
     smoothedPath.publishPathVehicles();

@@ -181,6 +181,11 @@ Node3D* Algorithm::hybridAStar(Node3D& start,
         // SEARCH WITH REEDS SHEPP SHOT
         if (Constants::ReedsSheppShot && nPred->isInRange(goal)) {
           nSucc = ReedsSheppShot(*nPred, goal, configurationSpace);
+          /*int flag1 = 0;
+          int flag2 = 0;
+          if (nSucc != nullptr) {flag1 = 1;}
+          if (*nSucc == goal) {flag2 = 1;}
+          std::cout << "Flag 1 value: " << flag1 << " " <<"Flag 2 value: " << flag2 << std::endl;*/
           if (nSucc != nullptr && *nSucc == goal) {
             //DEBUG
             return nSucc;
@@ -357,7 +362,7 @@ float aStar(Node2D& start,
   }
 
   // return large number to guide search away
-  return 1000;
+  return 1000000;
 }
 
 //###################################################
@@ -453,6 +458,10 @@ void updateH(Node3D& start, const Node3D& goal, Node2D* nodes2D, float* dubinsLo
     //    ros::Time t0 = ros::Time::now();
     // create a 2d start node
     Node2D start2d(start.getX(), start.getY(), 0, 0, nullptr);
+  
+    //std::cout << "Start 2D X value is: " << start.getX() << std::endl;
+    //std::cout << "Int Start 2D X value is: " << start2d.getX() << std::endl;
+
     // create a 2d goal node
     Node2D goal2d(goal.getX(), goal.getY(), 0, 0, nullptr);
     // run 2d astar and return the cost of the cheapest path for that node
@@ -557,6 +566,14 @@ Node3D* ReedsSheppShot(Node3D& start, const Node3D& goal, CollisionDetection& co
     RS_Nodes[i].setY(q[1]);
     RS_Nodes[i].setT(Helper::normalizeHeadingRad(q[2]));
 
+    // Force the last sampling point euqal to the goal
+    if (x + Constants::dubinsStepSize >= length) {
+      RS_Nodes[i].setX(goal.getX());
+      RS_Nodes[i].setY(goal.getY());
+      RS_Nodes[i].setT(goal.getT());
+      std::cout << "Force the last interpolation point to the goal" << std::endl;
+    }
+
     // collision check
     if (configurationSpace.isTraversable(&RS_Nodes[i])) {
 
@@ -583,5 +600,5 @@ Node3D* ReedsSheppShot(Node3D& start, const Node3D& goal, CollisionDetection& co
 
   std::cout << "Reeds Shepp shot connected, returning the path" << "\n";
 
-  return &RS_Nodes[i - 1];
+  return &RS_Nodes[i-1];
 }
