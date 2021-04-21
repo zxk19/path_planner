@@ -99,6 +99,7 @@ Vector2D Smoother::obstacleTerm(Vector2D xi) {
   Vector2D gradient;
   // the distance to the closest obstacle from the current node
   float obsDst = voronoi.getDistance(xi.getX(), xi.getY());
+  //std::cout << "Obstacle distance is: " << obsDst << std::endl;
   // the vector determining where the obstacle is
   int x = (int)xi.getX();
   int y = (int)xi.getY();
@@ -109,8 +110,11 @@ Vector2D Smoother::obstacleTerm(Vector2D xi) {
 
     // the closest obstacle is closer than desired correct the path for that
     if (obsDst < obsDMax) {
-      return gradient = wObstacle * 2 * (obsDst - obsDMax) * obsVct / obsDst;
+      gradient = wObstacle * 2 * (obsDst - obsDMax) * obsVct / obsDst;
+      //std::cout << "Param is: " << wObstacle << " Gradient is: " << gradient << std::endl;
+      return gradient; //= wObstacle * 2 * (obsDst - obsDMax) * obsVct / obsDst;
     }
+
   }
   return gradient;
 }
@@ -222,6 +226,7 @@ Vector2D Smoother::curvatureTerm(Vector2D xim1, Vector2D xi, Vector2D xip1) {
 //                                    SMOOTHNESS TERM
 //###################################################
 Vector2D Smoother::smoothnessTerm(Vector2D xim2, Vector2D xim1, Vector2D xi, Vector2D xip1, Vector2D xip2) {
+  //std::cout << "Smoothness Correction is: " << wSmoothness * (xim2 - 4 * xim1 + 6 * xi - 4 * xip1 + xip2) << std::endl;
   return wSmoothness * (xim2 - 4 * xim1 + 6 * xi - 4 * xip1 + xip2);
 }
 

@@ -211,7 +211,7 @@ void Planner::plan() {
     smoothedPath.updatePath(smoother.getPath());
     ros::Time t1 = ros::Time::now();
     ros::Duration d(t1 - t0);
-    std::cout << "TIME in ms: " << d * 1000 << std::endl;
+    std::cout << "PLANNING TIME in ms: " << d * 1000 << std::endl;
 
     // _________________________________
     // PUBLISH THE RESULTS OF THE SEARCH

@@ -52,7 +52,7 @@ class DynamicVoronoi {
   // was private, changed to public for obstX, obstY
  public:
   struct dataCell {
-    float dist;
+    float dist;   // distance to the nearest obstacle?
     char voronoi;
     char queueing;
     int obstX;

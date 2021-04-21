@@ -65,11 +65,12 @@ void DynamicVoronoi::initializeMap(int _sizeX, int _sizeY, bool** _gridMap) {
 
   for (int x=0; x<sizeX; x++) {
     for (int y=0; y<sizeY; y++) {
-      if (gridMap[x][y]) {
+      if (gridMap[x][y]) {    // only plays with the "occupied" cells from the original grid map, the outer shape of the obstacles?
         dataCell c = data[x][y];
-        if (!isOccupied(x,y,c)) {
+        
+        if (!isOccupied(x,y,c)) {  // check if the surrounding cells are also occupied
           
-          bool isSurrounded = true;
+          bool isSurrounded = true;  //if all the neighbouring cells are occupied
           for (int dx=-1; dx<=1; dx++) {
             int nx = x+dx;
             if (nx<=0 || nx>=sizeX-1) continue;
@@ -78,7 +79,7 @@ void DynamicVoronoi::initializeMap(int _sizeX, int _sizeY, bool** _gridMap) {
               int ny = y+dy;
               if (ny<=0 || ny>=sizeY-1) continue;
 
-              if (!gridMap[nx][ny]) {
+              if (!gridMap[nx][ny]) {  // if any of the neighbouring cells are not occupied (which is the edge of obstacle)
                 isSurrounded = false;
                 break;
               }
