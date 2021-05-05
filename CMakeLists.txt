@@ -19,6 +19,7 @@ find_package(catkin REQUIRED COMPONENTS
     rospy
     std_msgs
     tf
+    geometry_msgs
     )
 
 set(SOURCES
@@ -63,6 +64,11 @@ catkin_package()
 
 ## OPEN MOTION PLANNING LIBRARY
 find_package(ompl REQUIRED)
+find_package(Ceres REQUIRED)
+include_directories(${CERES_INCLUDE_DIRS})
+
+find_package(Eigen3 REQUIRED) 
+include_directories(${EIGEN3_INCLUDE_DIR})
 
 if(NOT OMPL_FOUND)
     message(AUTHOR_WARNING,"Open Motion Planning Library not found")
@@ -78,6 +84,8 @@ target_link_libraries(tf_broadcaster ${catkin_LIBRARIES})
 add_executable(hybrid_astar src/main.cpp ${HEADERS} ${SOURCES})
 target_link_libraries(hybrid_astar ${catkin_LIBRARIES})
 target_link_libraries(hybrid_astar ${OMPL_LIBRARIES})
+target_link_libraries(hybrid_astar ${CERES_LIBRARIES})
+
 
 install(TARGETS ${PROJECT_NAME} tf_broadcaster
     ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}

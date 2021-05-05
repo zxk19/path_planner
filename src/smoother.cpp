@@ -119,9 +119,9 @@ Vector2D Smoother::obstacleTerm(Vector2D xi) {
   return gradient;
 }
 
-//###################################################
-//                                       VORONOI TERM
-//###################################################
+// //###################################################
+// //                                       VORONOI TERM
+// //###################################################
 // Vector2D Smoother::voronoiTerm(Vector2D xi) {
 //   Vector2D gradient;
 //   //    alpha > 0 = falloff rate

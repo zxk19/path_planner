@@ -146,6 +146,8 @@ struct config {
 /// [m] --- The minimum width of a safe road for the vehicle at hand
 static const float minRoadWidth = 2;
 
+
+
 // ____________________________________________
 // COLOR DEFINITIONS FOR VISUALIZATION PURPOSES
 /// A structure to express colors in RGB values
@@ -167,8 +169,89 @@ static constexpr color orange = {253.f / 255.f, 151.f / 255.f, 31.f / 255.f};
 static constexpr color pink = {249.f / 255.f, 38.f / 255.f, 114.f / 255.f};
 /// A definition for a color used for visualization
 static constexpr color purple = {174.f / 255.f, 129.f / 255.f, 255.f / 255.f};
-}
+
+
+/**
+ * @struct HybridAStar::Constants::SmootherParams
+ * @brief Parameters for the ceres optimizer
+ */
+struct SmootherParams{
+  /**
+   * @brief A constructor for nav2_smac_planner::SmootherParams
+   */
+  SmootherParams()
+  {
+  }
+
+  double smooth_weight{0.0};
+  double costmap_weight{0.025};
+  double distance_weight{0.0};
+  double curvature_weight{30.0};
+  double max_curvature{6.0};
+  double costmap_factor{0.0};
+  double max_time{1000000};
+};
+
+
+/**
+ * @struct nav2_smac_planner::OptimizerParams
+ * @brief Parameters for the ceres optimizer
+ */
+struct OptimizerParams
+{
+  OptimizerParams()
+  : debug(false),
+    max_iterations(50),
+    max_time(1e4),
+    param_tol(1e-8),
+    fn_tol(1e-6),
+    gradient_tol(1e-10)
+  {
+  }
+
+  /**
+   * @struct AdvancedParams
+   * @brief Advanced parameters for the ceres optimizer
+   */
+  struct AdvancedParams
+  {
+    AdvancedParams()
+    : min_line_search_step_size(1e-9),
+      max_num_line_search_step_size_iterations(20),
+      line_search_sufficient_function_decrease(1e-4),
+      max_num_line_search_direction_restarts(20),
+      max_line_search_step_contraction(1e-3),
+      min_line_search_step_contraction(0.6),
+      line_search_sufficient_curvature_decrease(0.9),
+      max_line_search_step_expansion(10)
+    {
+    }
+
+    double min_line_search_step_size;  // Ceres default: 1e-9
+    int max_num_line_search_step_size_iterations;  // Ceres default: 20
+    double line_search_sufficient_function_decrease;  // Ceres default: 1e-4
+    int max_num_line_search_direction_restarts;  // Ceres default: 5
+
+    double max_line_search_step_contraction;  // Ceres default: 1e-3
+    double min_line_search_step_contraction;  // Ceres default: 0.6
+    double line_search_sufficient_curvature_decrease;  // Ceres default: 0.9
+    int max_line_search_step_expansion;  // Ceres default: 10
+};
+
+  bool debug;
+  int max_iterations;  // Ceres default: 50
+  double max_time;  // Ceres default: 1e4
+
+  double param_tol;  // Ceres default: 1e-8
+  double fn_tol;  // Ceres default: 1e-6
+  double gradient_tol;  // Ceres default: 1e-10
+
+  AdvancedParams advanced;
+
+};
+
 }
 
+}
 #endif // CONSTANTS
 

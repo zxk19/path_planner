@@ -206,7 +206,22 @@ void Planner::plan() {
     // CREATE THE UPDATED PATH, returns the array of segments, nodes, and vehicle bounding box
     path.updatePath(smoother.getPath());
     // SMOOTH THE PATH
-    smoother.smoothPath(voronoiDiagram);
+    //smoother.smoothPath(voronoiDiagram);
+
+    Constants::OptimizerParams params;
+    params.debug = true;
+    Constants::SmootherParams smoother_params;
+    smoother_params.max_curvature = 5.0;
+    smoother_params.curvature_weight = 30.0;
+    smoother_params.distance_weight = 0.0;
+    smoother_params.smooth_weight = 00.0;
+    smoother_params.costmap_weight = 0.025;
+
+    smoother.initialize(params);
+
+
+    smoother.smooth(voronoiDiagram, smoother_params);
+
     // CREATE THE UPDATED PATH
     smoothedPath.updatePath(smoother.getPath());
     ros::Time t1 = ros::Time::now();
