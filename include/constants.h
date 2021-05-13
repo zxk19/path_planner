@@ -95,7 +95,7 @@ static const float factor2D = sqrt(5) / sqrt(2) + 1;
 /// [#] --- A movement cost penalty for turning (choosing non straight motion primitives)
 static const float penaltyTurning = 1.05;
 /// [#] --- A movement cost penalty for reversing (choosing motion primitives > 2)
-static const float penaltyReversing = 2.0;
+static const float penaltyReversing = 2.0; //2.1
 /// [#] --- A movement cost penalty for change of direction (changing from primitives < 3 to primitives > 2)
 static const float penaltyCOD = 2.0;
 /// [m] --- The distance to the goal when the analytical solution (Dubin's shot) first triggers
@@ -183,28 +183,29 @@ struct SmootherParams{
   {
   }
 
-  double smooth_weight{0.0};
-  double costmap_weight{0.025};
+  double smooth_weight{30000}; //0.0 30000
+  double costmap_weight{0.025}; 
   double distance_weight{0.0};
   double curvature_weight{30.0};
   double max_curvature{6.0};
-  double costmap_factor{0.0};
-  double max_time{1000000};
+  double costmap_factor{1.0}; //10.0
+  double max_time{0.1};  //0.1
 };
 
 
 /**
  * @struct nav2_smac_planner::OptimizerParams
  * @brief Parameters for the ceres optimizer
+ * Don't recommend to change the values
  */
 struct OptimizerParams
 {
   OptimizerParams()
   : debug(false),
-    max_iterations(50),
-    max_time(1e4),
-    param_tol(1e-8),
-    fn_tol(1e-6),
+    max_iterations(500), //500
+    max_time(0.1),      //0.1
+    param_tol(1e-15),    //1e-15
+    fn_tol(1e-20),       //1e-20
     gradient_tol(1e-10)
   {
   }
@@ -216,14 +217,14 @@ struct OptimizerParams
   struct AdvancedParams
   {
     AdvancedParams()
-    : min_line_search_step_size(1e-9),
-      max_num_line_search_step_size_iterations(20),
-      line_search_sufficient_function_decrease(1e-4),
-      max_num_line_search_direction_restarts(20),
+    : min_line_search_step_size(1e-20),     //1e-20
+      max_num_line_search_step_size_iterations(50), //50
+      line_search_sufficient_function_decrease(1e-20),  //1e-20
+      max_num_line_search_direction_restarts(10),      //10
       max_line_search_step_contraction(1e-3),
       min_line_search_step_contraction(0.6),
       line_search_sufficient_curvature_decrease(0.9),
-      max_line_search_step_expansion(10)
+      max_line_search_step_expansion(50)               //50
     {
     }
 

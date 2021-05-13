@@ -141,15 +141,22 @@ public:
       addCurvatureResidual(_params.curvature_weight, xi, xi_p1, xi_m1, curvature_params, cost_raw);
       addDistanceResidual(_params.distance_weight, xi, _original_path->at(i), cost_raw);
 
+      if (xi[0] >= 0 && xi[0] <= _voronoi->getSizeX() && xi[1]>= 0 && xi[1] <= _voronoi->getSizeY()) {
+        costmap_cost = _voronoi->getDistance(xi[0], xi[1]);
+        addObstacleResidual(_params.costmap_weight, costmap_cost, cost_raw);
+        //std::cout << "Distance to the nearest obstacle is: " << costmap_cost << std::endl;
+      }
+
       // if (valid_coords = _costmap->worldToMap(xi[0], xi[1], mx, my)) {
       //   costmap_cost = _costmap->getCost(mx, my);
       //   addCostResidual(_params.costmap_weight, costmap_cost, cost_raw);
       // }
 
       // the distance to the closest obstacle from the current node
-      costmap_cost = _voronoi->getDistance(xi[0], xi[1]);
+      //costmap_cost = _voronoi->getDistance(xi[0], xi[1]);
+      //std::cout << "Closest distance to obstacle is: " << costmap_cost << std::endl;
       //costmap_cost = _voronoi.getDistance(xi[0], xi[1]);
-      addObstacleResidual(_params.costmap_weight, costmap_cost, cost_raw);
+      //addObstacleResidual(_params.costmap_weight, costmap_cost, cost_raw);
 
 
       if (gradient != NULL) {
@@ -168,10 +175,16 @@ public:
         //   addCostJacobian(_params.costmap_weight, mx, my, costmap_cost, grad_x_raw, grad_y_raw);
         // }
 
-        addObstacleJacobian(_params.costmap_weight, xi[0], xi[1], costmap_cost, grad_x_raw, grad_y_raw);
+        if (xi[0] >= 0 && xi[0] <= _voronoi->getSizeX() && xi[1]>= 0 && xi[1] <= _voronoi->getSizeY()) {
+          addObstacleJacobian(_params.costmap_weight, xi[0], xi[1], costmap_cost, grad_x_raw, grad_y_raw);
+        }
 
+    
         gradient[x_index] = grad_x_raw;
         gradient[y_index] = grad_y_raw;
+
+        std::cout << "****" << "Total gradient is: " << grad_x_raw << "|" << grad_y_raw << "****" << std::endl;
+
       }
     }
 
@@ -202,13 +215,25 @@ protected:
     const Eigen::Vector2d & pt_m,
     double & r) const
   {
-    r += weight * (
+    double smooth_r = weight * (
       pt_p.dot(pt_p) -
       4 * pt_p.dot(pt) +
       2 * pt_p.dot(pt_m) +
       4 * pt.dot(pt) -
       4 * pt.dot(pt_m) +
       pt_m.dot(pt_m));    // objective function value
+
+    r += smooth_r;
+
+    std::cout << "Smoothing residual is: " << smooth_r << std::endl;
+
+    // r += weight * (
+    //   pt_p.dot(pt_p) -
+    //   4 * pt_p.dot(pt) +
+    //   2 * pt_p.dot(pt_m) +
+    //   4 * pt.dot(pt) -
+    //   4 * pt.dot(pt_m) +
+    //   pt_m.dot(pt_m));    // objective function value
   }
 
   /**
@@ -228,10 +253,21 @@ protected:
     double & j0,
     double & j1) const
   {
-    j0 += weight *
+    double smoothing_jacobian_0 = weight *
       (-4 * pt_m[0] + 8 * pt[0] - 4 * pt_p[0]);   // xi x component of partial-derivative
-    j1 += weight *
+
+    double smoothing_jacobian_1 = weight *
       (-4 * pt_m[1] + 8 * pt[1] - 4 * pt_p[1]);   // xi y component of partial-derivative
+
+    j0 += smoothing_jacobian_0;
+    j1 += smoothing_jacobian_1;  
+
+    std::cout << "Smoothing jacobian is: " << smoothing_jacobian_0 << "|" << smoothing_jacobian_1 << std::endl;
+    
+    // j0 += weight *
+    //   (-4 * pt_m[0] + 8 * pt[0] - 4 * pt_p[0]);   // xi x component of partial-derivative
+    // j1 += weight *
+    //   (-4 * pt_m[1] + 8 * pt[1] - 4 * pt_p[1]);   // xi y component of partial-derivative
   }
 
   /**
@@ -285,8 +321,15 @@ protected:
       return;
     }
 
-    r += weight *
+    double curvature_r = weight *
       curvature_params.ki_minus_kmax * curvature_params.ki_minus_kmax;  // objective function value
+
+    std::cout << "Curvature residual is: " << curvature_r << std::endl;  
+
+    r += curvature_r;
+
+    // r += weight *
+    //   curvature_params.ki_minus_kmax * curvature_params.ki_minus_kmax;  // objective function value
   }
 
   /**
@@ -342,8 +385,18 @@ protected:
     // j1 += weight *
     //   (jacobian_im1[1] + 2 * jacobian[1] + jacobian_ip1[1]);
 
-    j0 += weight * jacobian[0];  // xi x component of partial-derivative
-    j1 += weight * jacobian[1];  // xi x component of partial-derivative
+    double curvature_jacobian_0 = weight * jacobian[0];  // xi x component of partial-derivative
+    double curvature_jacobian_1 = weight * jacobian[1];  // xi x component of partial-derivative 
+
+
+    std::cout << "Curvature jacobian is: " << curvature_jacobian_0 << "|" << curvature_jacobian_1 << std::endl;
+
+    j0 += curvature_jacobian_0;
+    j1 += curvature_jacobian_1;
+
+
+    //j0 += weight * jacobian[0];  // xi x component of partial-derivative
+    //j1 += weight * jacobian[1];  // xi x component of partial-derivative
   }
 
   /**
@@ -359,7 +412,13 @@ protected:
     const Eigen::Vector2d & xi_original,
     double & r) const
   {
-    r += weight * (xi - xi_original).dot(xi - xi_original);  // objective function value
+    double distance_r = weight * (xi - xi_original).dot(xi - xi_original);  // objective function value
+
+    r += distance_r; 
+
+    std::cout << "Distance residual is: " << distance_r << std::endl;  
+    
+    //r += weight * (xi - xi_original).dot(xi - xi_original);  // objective function value
   }
 
   /**
@@ -377,8 +436,16 @@ protected:
     double & j0,
     double & j1) const
   {
-    j0 += weight * 2 * (xi[0] - xi_original[0]);  // xi y component of partial-derivative
-    j1 += weight * 2 * (xi[1] - xi_original[1]);  // xi y component of partial-derivative
+    double distance_jacobian_0 = weight * 2 * (xi[0] - xi_original[0]);  // xi y component of partial-derivative
+    double distance_jacobian_1 = weight * 2 * (xi[1] - xi_original[1]);  // xi y component of partial-derivative
+
+    j0 += distance_jacobian_0;
+    j1 += distance_jacobian_1;
+    
+    std::cout << "Distance jacobian is: " << distance_jacobian_0 << "|" << distance_jacobian_1 << std::endl;
+
+    //j0 += weight * 2 * (xi[0] - xi_original[0]);  // xi y component of partial-derivative
+    //j1 += weight * 2 * (xi[1] - xi_original[1]);  // xi y component of partial-derivative
   }
 
 
@@ -394,11 +461,19 @@ protected:
     const double & value,
     double & r) const
   {
+    std::cout << "*****Original distance to Obstacle is: " << value << std::endl;
+
     if (value >= Constants::minRoadWidth) {
       return;
     }
 
-    r += weight * value * value;  // objective function value
+    double obstacle_r = -weight * value * value;  // objective function value
+
+    r += obstacle_r;
+
+    std::cout << "Obstacle residual is: " << obstacle_r << std::endl;  
+
+    //r += weight * value * value;  // objective function value
   }
 
   /**
@@ -424,10 +499,20 @@ protected:
     }
 
     const Eigen::Vector2d grad = getCostmapGradient(mx, my);
-    const double common_prefix = -2.0 * _params.costmap_factor * weight * value * value;
 
-    j0 += common_prefix * grad[0];  // xi x component of partial-derivative
-    j1 += common_prefix * grad[1];  // xi y component of partial-derivative
+    //const double common_prefix = -2.0 * _params.costmap_factor * weight * value * value;
+    const double common_prefix = -2.0 * _params.costmap_factor * weight * value;
+
+    double obstacle_jacobian_0 = common_prefix * grad[0];  // xi x component of partial-derivative
+    double obstacle_jacobian_1 = common_prefix * grad[1];  // xi y component of partial-derivative
+
+    j0 += obstacle_jacobian_0;
+    j1 += obstacle_jacobian_1;
+
+    std::cout << "Obstacle jacobian is: " << obstacle_jacobian_0 << "|" << obstacle_jacobian_1 << std::endl;
+
+    //j0 += common_prefix * grad[0];  // xi x component of partial-derivative
+    //j1 += common_prefix * grad[1];  // xi y component of partial-derivative
   }
 
   /**
@@ -446,55 +531,57 @@ protected:
     Eigen::Vector2d gradient;
 
     double l_1 = 0.0;
-    double l_2 = 0.0;
-    double l_3 = 0.0;
+    //double l_2 = 0.0;
+    //double l_3 = 0.0;
     double r_1 = 0.0;
-    double r_2 = 0.0;
-    double r_3 = 0.0;
+    //double r_2 = 0.0;
+    //double r_3 = 0.0;
 
     if (mx < _voronoi->getSizeX()) {
       r_1 = static_cast<double>(_voronoi->getDistance(mx + 1, my));
     }
-    if (mx + 1 < _voronoi->getSizeX()) {
-      r_2 = static_cast<double>(_voronoi->getDistance(mx + 2, my));
-    }
-    if (mx + 2 < _voronoi->getSizeX()) {
-      r_3 = static_cast<double>(_voronoi->getDistance(mx + 3, my));
-    }
+    // if (mx + 1 < _voronoi->getSizeX()) {
+    //   r_2 = static_cast<double>(_voronoi->getDistance(mx + 2, my));
+    // }
+    // if (mx + 2 < _voronoi->getSizeX()) {
+    //   r_3 = static_cast<double>(_voronoi->getDistance(mx + 3, my));
+    // }
 
     if (mx > 0) {
       l_1 = static_cast<double>(_voronoi->getDistance(mx - 1, my));
     }
-    if (mx - 1 > 0) {
-      l_2 = static_cast<double>(_voronoi->getDistance(mx - 2, my));
-    }
-    if (mx - 2 > 0) {
-      l_3 = static_cast<double>(_voronoi->getDistance(mx - 3, my));
-    }
+    // if (mx - 1 > 0) {
+    //   l_2 = static_cast<double>(_voronoi->getDistance(mx - 2, my));
+    // }
+    // if (mx - 2 > 0) {
+    //   l_3 = static_cast<double>(_voronoi->getDistance(mx - 3, my));
+    // }
 
-    gradient[1] = (45 * r_1 - 9 * r_2 + r_3 - 45 * l_1 + 9 * l_2 - l_3) / 60;
+    //gradient[1] = (45 * r_1 - 9 * r_2 + r_3 - 45 * l_1 + 9 * l_2 - l_3) / 60;
+    gradient[0] = (r_1 - l_1) / 2;
 
     if (my < _voronoi->getSizeY()) {
       r_1 = static_cast<double>(_voronoi->getDistance(mx, my + 1));
     }
-    if (my + 1 < _voronoi->getSizeY()) {
-      r_2 = static_cast<double>(_voronoi->getDistance(mx, my + 2));
-    }
-    if (my + 2 < _voronoi->getSizeY()) {
-      r_3 = static_cast<double>(_voronoi->getDistance(mx, my + 3));
-    }
+    // if (my + 1 < _voronoi->getSizeY()) {
+    //   r_2 = static_cast<double>(_voronoi->getDistance(mx, my + 2));
+    // }
+    // if (my + 2 < _voronoi->getSizeY()) {
+    //   r_3 = static_cast<double>(_voronoi->getDistance(mx, my + 3));
+    // }
 
     if (my > 0) {
       l_1 = static_cast<double>(_voronoi->getDistance(mx, my - 1));
     }
-    if (my - 1 > 0) {
-      l_2 = static_cast<double>(_voronoi->getDistance(mx, my - 2));
-    }
-    if (my - 2 > 0) {
-      l_3 = static_cast<double>(_voronoi->getDistance(mx, my - 3));
-    }
+    // if (my - 1 > 0) {
+    //   l_2 = static_cast<double>(_voronoi->getDistance(mx, my - 2));
+    // }
+    // if (my - 2 > 0) {
+    //   l_3 = static_cast<double>(_voronoi->getDistance(mx, my - 3));
+    // }
 
-    gradient[0] = (45 * r_1 - 9 * r_2 + r_3 - 45 * l_1 + 9 * l_2 - l_3) / 60;
+    //gradient[0] = (45 * r_1 - 9 * r_2 + r_3 - 45 * l_1 + 9 * l_2 - l_3) / 60;
+    gradient[1] = (r_1 - l_1) / 2;
 
     gradient.normalize();
     return gradient;

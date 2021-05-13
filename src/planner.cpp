@@ -203,36 +203,45 @@ void Planner::plan() {
     //std::cout << "nSolution is: " << nSolution << endl;
     // TRACE THE PATH, returns an array of Node3D objects, smoother.path (std::vector<Node3D>), no smoothing yet.
     smoother.tracePath(nSolution);
-    // CREATE THE UPDATED PATH, returns the array of segments, nodes, and vehicle bounding box
-    path.updatePath(smoother.getPath());
-    // SMOOTH THE PATH
-    //smoother.smoothPath(voronoiDiagram);
 
+    // _______________________________________________
+    // PUBLISH THE RESULTS OF THE SEARCH -- UNSMOOTHED
+    // CREATE THE UNSMOOTHED PATH, returns the array of segments, nodes, and vehicle bounding box
+    path.updatePath(smoother.getPath());
+    path.publishPath();
+    path.publishPathNodes();
+    path.publishPathVehicles();
+
+    path.publishPath();
+    path.publishPathNodes();
+    path.publishPathVehicles();
+
+    visualization.publishNode3DCosts(nodes3D, width, height, depth);
+    visualization.publishNode2DCosts(nodes2D, width, height);
+
+    // SMOOTHER 1
+    // smoother.smoothPath(voronoiDiagram);
+
+    // SMOOTHER 2
     Constants::OptimizerParams params;
     params.debug = true;
     Constants::SmootherParams smoother_params;
-    smoother_params.max_curvature = 5.0;
-    smoother_params.curvature_weight = 30.0;
-    smoother_params.distance_weight = 0.0;
-    smoother_params.smooth_weight = 00.0;
-    smoother_params.costmap_weight = 0.025;
-
+    smoother_params.max_curvature = 6.0;
+    smoother_params.curvature_weight = 0.0; // 30.0;
+    smoother_params.distance_weight = 0.0; // 1000.0;
+    smoother_params.smooth_weight = 100; // 30; //0.0
+    smoother_params.costmap_weight = 0.0;  // 25; //0.025
     smoother.initialize(params);
-
-
     smoother.smooth(voronoiDiagram, smoother_params);
 
-    // CREATE THE UPDATED PATH
+    // // CREATE THE UPDATED PATH
     smoothedPath.updatePath(smoother.getPath());
     ros::Time t1 = ros::Time::now();
     ros::Duration d(t1 - t0);
     std::cout << "PLANNING TIME in ms: " << d * 1000 << std::endl;
 
-    // _________________________________
-    // PUBLISH THE RESULTS OF THE SEARCH
-    //path.publishPath();
-    //path.publishPathNodes();
-    //path.publishPathVehicles();
+    // _____________________________________________
+    // PUBLISH THE RESULTS OF THE SEARCH -- SMOOTHED
     smoothedPath.publishPath();
     smoothedPath.publishPathNodes();
     smoothedPath.publishPathVehicles();
