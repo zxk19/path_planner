@@ -12,6 +12,7 @@
 #include "ceres/ceres.h"
 #include "Eigen/Core"
 #include "smoother_cost_function.h"
+#include "collisiondetection.h"
 
 
 #include <cmath>
@@ -127,10 +128,13 @@ class Smoother {
    */
   bool smooth(
     DynamicVoronoi & voronoi,
-    const Constants::SmootherParams & params)
+    const Constants::SmootherParams & params,
+    CollisionDetection& configurationSpace)
   {
+    bool collision_flag = false;
+
     this->voronoi = voronoi;
-    
+
     _options.max_solver_time_in_seconds = params.max_time;
 
     // populate our smoothing paths
@@ -155,12 +159,24 @@ class Smoother {
       return false;
     }
 
+    this->path_smoothed = this->path;
+
     for (uint i = 0; i != this->path.size(); i++) {
-      this->path[i].setX(parameters[2 * i]);
-      this->path[i].setY(parameters[2 * i + 1]);
+      this->path_smoothed[i].setX(parameters[2 * i]);
+      this->path_smoothed[i].setY(parameters[2 * i + 1]);
       if (i != (this->path.size() - 1)){
-        this->path[i].setT(std::atan2((parameters[2 * i + 3] - parameters[2 * i + 1]), (parameters[2 * i + 2] - parameters[2 * i])));
+        this->path_smoothed[i].setT(std::atan2((parameters[2 * i + 3] - parameters[2 * i + 1]), (parameters[2 * i + 2] - parameters[2 * i])));
       }
+
+      if (!configurationSpace.isTraversable(&this->path_smoothed[i])) {
+        collision_flag = true;
+        std::cout << "***************** Collision After Smooth!******************" << std::endl; 
+        break;
+      }
+    }
+
+    if (!collision_flag){
+     this->path = this->path_smoothed;
     }
 
     return true;
@@ -170,7 +186,7 @@ class Smoother {
   /// maximum possible curvature of the non-holonomic vehicle
   float kappaMax = 1.f / (Constants::r * 1.1);
   /// maximum distance to obstacles that is penalized
-  float obsDMax = Constants::minRoadWidth;
+  float obsDMax = 4; //Constants::minRoadWidth;
   /// maximum distance for obstacles to influence the voronoi field
   float vorObsDMax = Constants::minRoadWidth;
   /// falloff rate for the voronoi field
@@ -185,12 +201,16 @@ class Smoother {
   float wSmoothness = 0.2;
   /// voronoi diagram describing the topology of the map
   DynamicVoronoi voronoi;
+
+  //CollisionDetection cspace;
   /// width of the map
   int width;
   /// height of the map
   int height;
   /// path to be smoothed
   std::vector<Node3D> path;
+  /// smoothed path
+  std::vector<Node3D> path_smoothed;
 
   bool _debug;
   ceres::GradientProblemSolver::Options _options; 

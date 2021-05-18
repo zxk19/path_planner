@@ -25,10 +25,8 @@
 namespace HybridAStar {
 /*!
    \brief A class that creates the interface for the hybrid A* algorithm.
-
-    It inherits from `ros::nav_core::BaseGlobalPlanner` so that it can easily be used with the ROS navigation stack
-   \todo make it actually inherit from nav_core::BaseGlobalPlanner
 */
+
 class Planner {
  public:
   /// The default constructor
@@ -36,7 +34,7 @@ class Planner {
 
   /*!
      \brief Initializes the collision as well as heuristic lookup table
-     \todo probably removed
+     \todo Not implemented yet
   */
   void initializeLookups();
 
@@ -102,8 +100,10 @@ class Planner {
   bool validGoal = false;
   /// A lookup table for configurations of the vehicle and their spatial occupancy enumeration
   Constants::config collisionLookup[Constants::headings * Constants::positions];
+  /// Initialize the smoother
+  Constants::SmootherParams smoother_params;
   /// A lookup of analytical solutions (Dubin's paths)
-  float* dubinsLookup = new float [Constants::headings * Constants::headings * Constants::dubinsWidth * Constants::dubinsWidth];
+  //float* dubinsLookup = new float [Constants::headings * Constants::headings * Constants::dubinsWidth * Constants::dubinsWidth];
 };
 }
 #endif // PLANNER_H

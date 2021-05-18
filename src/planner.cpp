@@ -8,7 +8,7 @@ Planner::Planner() {
   // _____
   // TODOS
   //    initializeLookups();
-  // Lookup::collisionLookup(collisionLookup);
+  //    Lookup::collisionLookup(collisionLookup);
   // ___________________
   // COLLISION DETECTION
   //    CollisionDetection configurationSpace;
@@ -26,15 +26,26 @@ Planner::Planner() {
 
   subGoal = n.subscribe("/move_base_simple/goal", 1, &Planner::setGoal, this);
   subStart = n.subscribe("/initialpose", 1, &Planner::setStart, this);
+
+  // __________________________
+  // INITIALIZE SMOOTHER PARAMS
+  Constants::OptimizerParams params;
+  params.debug = true;
+  smoother_params.max_curvature = 6.0;
+  smoother_params.curvature_weight = 0.0; // 30.0;
+  smoother_params.distance_weight = 0.0; // 1000.0;
+  smoother_params.smooth_weight = 100; // 30; //0.0 //10
+  smoother_params.costmap_weight = 0.0;  // 25; //0.025 //100
+  smoother.initialize(params);
 };
 
 //###################################################
 //                                       LOOKUPTABLES
 //###################################################
 void Planner::initializeLookups() {
-  if (Constants::dubinsLookup) {
-    Lookup::dubinsLookup(dubinsLookup);
-  }
+  // if (Constants::dubinsLookup) {
+  //   Lookup::dubinsLookup(dubinsLookup);
+  // }
 
   Lookup::collisionLookup(collisionLookup);
 }
@@ -51,7 +62,7 @@ void Planner::setMap(const nav_msgs::OccupancyGrid::Ptr map) {
   //update the configuration space with the current map
   configurationSpace.updateGrid(map);
   //create array for Voronoi diagram
-//  ros::Time t0 = ros::Time::now();
+  // ros::Time t0 = ros::Time::now();
   int height = map->info.height;
   int width = map->info.width;
   bool** binMap;
@@ -67,10 +78,10 @@ void Planner::setMap(const nav_msgs::OccupancyGrid::Ptr map) {
 
   voronoiDiagram.initializeMap(width, height, binMap);
   voronoiDiagram.update();
-  voronoiDiagram.visualize();
-//  ros::Time t1 = ros::Time::now();
-//  ros::Duration d(t1 - t0);
-//  std::cout << "created Voronoi Diagram in ms: " << d * 1000 << std::endl;
+  // voronoiDiagram.visualize();
+  // ros::Time t1 = ros::Time::now();
+  // ros::Duration d(t1 - t0);
+  // std::cout << "created Voronoi Diagram in ms: " << d * 1000 << std::endl;
 
   // plan if the switch is not set to manual and a transform is available
   if (!Constants::manual && listener.canTransform("/map", ros::Time(0), "/base_link", ros::Time(0), "/map", nullptr)) {
@@ -169,11 +180,7 @@ void Planner::plan() {
     float t = tf::getYaw(goal.pose.orientation);
     // set theta to a value (0,2PI]
     t = Helper::normalizeHeadingRad(t);
-    const Node3D nGoal(x, y, t, 0, 0, nullptr);
-    // __________
-    // DEBUG GOAL
-    //    const Node3D nGoal(155.349, 36.1969, 0.7615936, 0, 0, nullptr);
-
+    Node3D nGoal(x, y, t, 0, 0, nullptr);
 
     // _________________________
     // retrieving start position
@@ -183,26 +190,24 @@ void Planner::plan() {
     // set theta to a value (0,2PI]
     t = Helper::normalizeHeadingRad(t);
     Node3D nStart(x, y, t, 0, 0, nullptr);
-    // ___________
-    // DEBUG START
-    //    Node3D nStart(108.291, 30.1081, 0, 0, 0, nullptr);
-
-
-    // ___________________________
-    // START AND TIME THE PLANNING
-    ros::Time t0 = ros::Time::now();
 
     // CLEAR THE VISUALIZATION
     visualization.clear();
     // CLEAR THE PATH
     path.clear();
     smoothedPath.clear();
+
+    // ___________________________
+    // START AND TIME THE PLANNING
+    ros::Time t0 = ros::Time::now();
     // FIND THE PATH    
-    // nSolution is the address of an Node 3D object (goal?). Also the array nodes3D contains all the expanded nodes.
-    Node3D* nSolution = Algorithm::hybridAStar(nStart, nGoal, nodes3D, nodes2D, width, height, configurationSpace, dubinsLookup, visualization);
-    //std::cout << "nSolution is: " << nSolution << endl;
+    // nSolution is the address of an Node 3D object (goal). Also the array nodes3D contains all the expanded nodes.
+    Node3D* nSolution = Algorithm::hybridAStar(nStart, nGoal, nodes3D, nodes2D, width, height, configurationSpace, visualization);
     // TRACE THE PATH, returns an array of Node3D objects, smoother.path (std::vector<Node3D>), no smoothing yet.
     smoother.tracePath(nSolution);
+    ros::Time t1 = ros::Time::now();
+    ros::Duration d(t1 - t0);
+    std::cout << "PLANNING TIME in ms: " << d * 1000 << std::endl;
 
     // _______________________________________________
     // PUBLISH THE RESULTS OF THE SEARCH -- UNSMOOTHED
@@ -211,44 +216,29 @@ void Planner::plan() {
     path.publishPath();
     path.publishPathNodes();
     path.publishPathVehicles();
-
-    path.publishPath();
-    path.publishPathNodes();
-    path.publishPathVehicles();
-
     visualization.publishNode3DCosts(nodes3D, width, height, depth);
     visualization.publishNode2DCosts(nodes2D, width, height);
 
+    // ____________________________
+    // START AND TIME THE SMOOTHING
+    t0 = ros::Time::now();
     // SMOOTHER 1
     // smoother.smoothPath(voronoiDiagram);
-
     // SMOOTHER 2
-    Constants::OptimizerParams params;
-    params.debug = true;
-    Constants::SmootherParams smoother_params;
-    smoother_params.max_curvature = 6.0;
-    smoother_params.curvature_weight = 0.0; // 30.0;
-    smoother_params.distance_weight = 0.0; // 1000.0;
-    smoother_params.smooth_weight = 100; // 30; //0.0
-    smoother_params.costmap_weight = 0.0;  // 25; //0.025
-    smoother.initialize(params);
-    smoother.smooth(voronoiDiagram, smoother_params);
-
-    // // CREATE THE UPDATED PATH
-    smoothedPath.updatePath(smoother.getPath());
-    ros::Time t1 = ros::Time::now();
-    ros::Duration d(t1 - t0);
-    std::cout << "PLANNING TIME in ms: " << d * 1000 << std::endl;
+    smoother.smooth(voronoiDiagram, smoother_params, configurationSpace);
+    t1 = ros::Time::now();
+    ros::Duration d_smooth(t1 - t0);
+    std::cout << "SMOOTHING TIME in ms: " << d_smooth * 1000 << std::endl;
 
     // _____________________________________________
     // PUBLISH THE RESULTS OF THE SEARCH -- SMOOTHED
+    // CREATE THE UPDATED PATH
+    smoothedPath.updatePath(smoother.getPath());
     smoothedPath.publishPath();
     smoothedPath.publishPathNodes();
     smoothedPath.publishPathVehicles();
     visualization.publishNode3DCosts(nodes3D, width, height, depth);
     visualization.publishNode2DCosts(nodes2D, width, height);
-
-
 
     delete [] nodes3D;
     delete [] nodes2D;

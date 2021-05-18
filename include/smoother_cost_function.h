@@ -111,6 +111,8 @@ public:
     Eigen::Vector2d xi;
     Eigen::Vector2d xi_p1;
     Eigen::Vector2d xi_m1;
+    Eigen::Vector2d xi_p2;
+    Eigen::Vector2d xi_m2;
     uint x_index, y_index;
     cost[0] = 0.0;
     double cost_raw = 0.0;
@@ -134,10 +136,15 @@ public:
 
       xi = Eigen::Vector2d(parameters[x_index], parameters[y_index]);
       xi_p1 = Eigen::Vector2d(parameters[x_index + 2], parameters[y_index + 2]);
-      xi_m1 = Eigen::Vector2d(parameters[x_index - 2], parameters[y_index - 2]);
+      xi_m1 = Eigen::Vector2d(parameters[x_index - 2], parameters[y_index - 2]); 
 
       // compute cost
-      addSmoothingResidual(_params.smooth_weight, xi, xi_p1, xi_m1, cost_raw);
+      if (i >=2 && i < NumParameters() / 2 - 2){
+        xi_p2 = Eigen::Vector2d(parameters[x_index + 4], parameters[y_index + 4]);
+        xi_m2 = Eigen::Vector2d(parameters[x_index - 4], parameters[y_index - 4]);
+        addSmoothingResidual(_params.smooth_weight, xi, xi_p1, xi_m1, xi_p2, xi_m2, cost_raw);
+      }
+      
       addCurvatureResidual(_params.curvature_weight, xi, xi_p1, xi_m1, curvature_params, cost_raw);
       addDistanceResidual(_params.distance_weight, xi, _original_path->at(i), cost_raw);
 
@@ -163,7 +170,9 @@ public:
         // compute gradient
         gradient[x_index] = 0.0;
         gradient[y_index] = 0.0;
-        addSmoothingJacobian(_params.smooth_weight, xi, xi_p1, xi_m1, grad_x_raw, grad_y_raw);
+        if (i >=2 && i < NumParameters() / 2 - 2){
+          addSmoothingJacobian(_params.smooth_weight, xi, xi_p1, xi_m1, xi_p2, xi_m2, grad_x_raw, grad_y_raw);
+        }     
         addCurvatureJacobian(
           _params.curvature_weight, xi, xi_p1, xi_m1, curvature_params,
           grad_x_raw, grad_y_raw);
@@ -211,17 +220,24 @@ protected:
   inline void addSmoothingResidual(
     const double & weight,
     const Eigen::Vector2d & pt,
-    const Eigen::Vector2d & pt_p,
-    const Eigen::Vector2d & pt_m,
+    const Eigen::Vector2d & pt_p1,
+    const Eigen::Vector2d & pt_m1,
+    const Eigen::Vector2d & pt_p2,
+    const Eigen::Vector2d & pt_m2,
     double & r) const
   {
+    // double smooth_r = weight * (
+    //   pt_p.dot(pt_p) -
+    //   4 * pt_p.dot(pt) +
+    //   2 * pt_p.dot(pt_m) +
+    //   4 * pt.dot(pt) -
+    //   4 * pt.dot(pt_m) +
+    //   pt_m.dot(pt_m));    // objective function value
+
     double smooth_r = weight * (
-      pt_p.dot(pt_p) -
-      4 * pt_p.dot(pt) +
-      2 * pt_p.dot(pt_m) +
-      4 * pt.dot(pt) -
-      4 * pt.dot(pt_m) +
-      pt_m.dot(pt_m));    // objective function value
+      (pt_p2 - 2 * pt_p1 + pt).dot(pt_p2 - 2 * pt_p1 + pt) +
+      (pt_p1 - 2 * pt + pt_m1).dot(pt_p1 - 2 * pt + pt_m1) +
+      (pt - 2 * pt_m1 + pt_m2).dot(pt - 2 * pt_m1 + pt_m2));    // objective function value
 
     r += smooth_r;
 
@@ -248,16 +264,20 @@ protected:
   inline void addSmoothingJacobian(
     const double & weight,
     const Eigen::Vector2d & pt,
-    const Eigen::Vector2d & pt_p,
-    const Eigen::Vector2d & pt_m,
+    const Eigen::Vector2d & pt_p1,
+    const Eigen::Vector2d & pt_m1,
+    const Eigen::Vector2d & pt_p2,
+    const Eigen::Vector2d & pt_m2,
     double & j0,
     double & j1) const
   {
     double smoothing_jacobian_0 = weight *
-      (-4 * pt_m[0] + 8 * pt[0] - 4 * pt_p[0]);   // xi x component of partial-derivative
+      (pt_m2[0] -4 * pt_m1[0] + 6 * pt[0] - 4 * pt_p1[0] + pt_p2[0]);   // xi x component of partial-derivative
+      //(-4 * pt_m[0] + 8 * pt[0] - 4 * pt_p[0]);   // xi x component of partial-derivative
 
     double smoothing_jacobian_1 = weight *
-      (-4 * pt_m[1] + 8 * pt[1] - 4 * pt_p[1]);   // xi y component of partial-derivative
+      (pt_m2[1] -4 * pt_m1[1] + 6 * pt[1] - 4 * pt_p1[1] + pt_p2[1]);   // xi x component of partial-derivative
+      //(-4 * pt_m[1] + 8 * pt[1] - 4 * pt_p[1]);   // xi y component of partial-derivative
 
     j0 += smoothing_jacobian_0;
     j1 += smoothing_jacobian_1;  
@@ -463,11 +483,12 @@ protected:
   {
     std::cout << "*****Original distance to Obstacle is: " << value << std::endl;
 
-    if (value >= Constants::minRoadWidth) {
+    if (value > Constants::obsDMax) {
       return;
     }
 
-    double obstacle_r = -weight * value * value;  // objective function value
+    //double obstacle_r = -weight * value * value;  // objective function value
+    double obstacle_r = weight * (value - Constants::obsDMax) * (value - Constants::obsDMax);  // objective function value
 
     r += obstacle_r;
 
@@ -494,13 +515,12 @@ protected:
     double & j0,
     double & j1) const
   {
-    if (value >= Constants::minRoadWidth) {
+    if (value > Constants::minRoadWidth) {
       return;
     }
 
     const Eigen::Vector2d grad = getCostmapGradient(mx, my);
 
-    //const double common_prefix = -2.0 * _params.costmap_factor * weight * value * value;
     const double common_prefix = -2.0 * _params.costmap_factor * weight * value;
 
     double obstacle_jacobian_0 = common_prefix * grad[0];  // xi x component of partial-derivative
@@ -584,6 +604,7 @@ protected:
     gradient[1] = (r_1 - l_1) / 2;
 
     gradient.normalize();
+
     return gradient;
   }
 

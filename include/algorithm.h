@@ -48,7 +48,7 @@ class Algorithm {
                              int width,
                              int height,
                              CollisionDetection& configurationSpace,
-                             float* dubinsLookup,
+                             //float* dubinsLookup,
                              Visualize& visualization);
 
 };

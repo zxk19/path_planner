@@ -50,7 +50,7 @@ static const bool dubins = false;
    \brief A flag to toggle the Dubin's heuristic via lookup, potentially speeding up the search by a lot
    \todo not yet functional
 */
-static const bool dubinsLookup = false && dubins;
+//static const bool dubinsLookup = false && dubins;
 /// A flag to toggle the 2D heuristic (true = on; false = off)
 static const bool twoD = true;
 
@@ -79,8 +79,6 @@ static const float deltaHeadingNegRad = 2 * M_PI - deltaHeadingRad;
 static const float cellSize = 1;
 /*!
   \brief [m] --- The tie breaker breaks ties between nodes expanded in the same cell
-
-
   As the cost-so-far are bigger than the cost-to-come it is reasonbale to believe that the algorithm would prefer the predecessor rather than the successor.
   This would lead to the fact that the successor would never be placed and the the one cell could only expand one node. The tieBreaker artificially increases the cost of the predecessor
   to allow the successor being placed in the same cell.
@@ -144,9 +142,8 @@ struct config {
 // _________________
 // SMOOTHER SPECIFIC
 /// [m] --- The minimum width of a safe road for the vehicle at hand
-static const float minRoadWidth = 2;
-
-
+static const float minRoadWidth = 2; //2
+static const float obsDMax = 2; //2
 
 // ____________________________________________
 // COLOR DEFINITIONS FOR VISUALIZATION PURPOSES
