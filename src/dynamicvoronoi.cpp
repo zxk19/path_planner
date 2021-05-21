@@ -9,6 +9,8 @@ DynamicVoronoi::DynamicVoronoi() {
   sqrt2 = sqrt(2.0);
   data = NULL;
   gridMap = NULL;
+  edge_points_.clear();
+  closest_edge_points_.clear();
 }
 
 DynamicVoronoi::~DynamicVoronoi() {
@@ -241,12 +243,70 @@ void DynamicVoronoi::update(bool updateRealDist) {
     }
     data[x][y] = c;
   }
+
+  CollectVoronoiEdgePoints();
+
+}
+
+void DynamicVoronoi::CollectVoronoiEdgePoints() {
+  if(!edge_points_.empty()) {
+    edge_points_.clear();
+    closest_edge_points_.clear();
+  }
+  for(int y = sizeY-1; y >=0; y--){
+    for(int x = 0; x<sizeX; x++){
+      if(isVoronoi(x,y)){  //on the edge of Voronoi diagram
+        edge_points_.emplace_back(x, y);
+        closest_edge_points_.emplace(ComputeIndex(Eigen::Vector2d(x,y)), std::make_pair(Eigen::Vector2d(x,y), 0));
+      }
+    }
+  }
+}
+
+std::string DynamicVoronoi::ComputeIndex(const Eigen::Vector2d& pi) const {
+  return std::to_string(static_cast<int>(pi[0])) + "_" + std::to_string(static_cast<int>(pi[1]));
+}
+
+Eigen::Vector2d DynamicVoronoi::GetClosestVoronoiEdgePoint(Eigen::Vector2d xi, double& closest_dis) {
+  Eigen::Vector2d closest_pt;
+  auto iter = closest_edge_points_.find(ComputeIndex(xi));
+  if (closest_edge_points_.find(ComputeIndex(xi)) != closest_edge_points_.end()) {
+    closest_pt = (*iter).second.first;
+    closest_dis = (*iter).second.second;
+    return closest_pt;
+  }
+
+  float closest_dis_sq = INT_MAX;
+  for(const auto& pt : edge_points_) {
+    //int tmp_sq = pow((int)(xi.x() - pt.x()), 2) + pow((int)(xi.y() - pt.y()), 2);
+    float tmp_sq = pow((xi[0] - pt[0]), 2) + pow((xi[1] - pt[1]), 2);
+    if(tmp_sq < closest_dis_sq) {
+      closest_dis_sq = tmp_sq;
+      closest_pt = pt;
+    }
+  }
+  //closest_dis = sqrt(static_cast<double>(closest_dis_sq));
+  closest_dis = sqrt(closest_dis_sq);
+  closest_edge_points_.emplace(ComputeIndex(xi), std::make_pair(closest_pt, closest_dis));
+  return closest_pt;
 }
 
 float DynamicVoronoi::getDistance( int x, int y ) const {
   if( (x>0) && (x<sizeX) && (y>0) && (y<sizeY)) return data[x][y].dist; 
   else return -INFINITY;
 }
+
+Eigen::Vector2d DynamicVoronoi::GetClosestObstacle(int x, int y) const {
+
+  if( (x>0) && (x<sizeX) && (y>0) && (y<sizeY)) {
+    int obs_x = data[x][y].obstX;
+    int obs_y = data[x][y].obstY;
+    return Eigen::Vector2d(obs_x, obs_y); 
+  }
+  
+  else return Eigen::Vector2d(0,0);
+}
+
 
 bool DynamicVoronoi::isVoronoi( int x, int y ) const {
   dataCell c = data[x][y];

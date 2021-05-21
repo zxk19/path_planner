@@ -120,7 +120,10 @@ public:
     double grad_y_raw = 0.0;
     //unsigned int mx, my;
     //bool valid_coords = true;
-    double costmap_cost = 0.0;
+    double obs_dist = 0.0;
+    double voronoi_dist = 0.0;
+    Eigen::Vector2d closest_voronoi_pt;
+    Eigen::Vector2d closest_obstacle;
 
     // cache some computations between the residual and jacobian
     CurvatureComputations curvature_params;
@@ -149,9 +152,14 @@ public:
       addDistanceResidual(_params.distance_weight, xi, _original_path->at(i), cost_raw);
 
       if (xi[0] >= 0 && xi[0] <= _voronoi->getSizeX() && xi[1]>= 0 && xi[1] <= _voronoi->getSizeY()) {
-        costmap_cost = _voronoi->getDistance(xi[0], xi[1]);
-        addObstacleResidual(_params.costmap_weight, costmap_cost, cost_raw);
+        obs_dist = _voronoi->getDistance(xi[0], xi[1]);
+        closest_obstacle = _voronoi->GetClosestObstacle(xi[0], xi[1]);
+        closest_voronoi_pt = _voronoi->GetClosestVoronoiEdgePoint(xi, voronoi_dist);
+        addObstacleResidual(_params.obstacle_weight, obs_dist, cost_raw);
+        addVoronoiResidual(_params.voronoi_weight, _params.alpha, obs_dist, voronoi_dist, cost_raw);
         //std::cout << "Distance to the nearest obstacle is: " << costmap_cost << std::endl;
+        std::cout << "************Current position is: " << xi << std::endl;
+        std::cout << "Distance to the nearest obstacle is: " << obs_dist << " Point is: " << closest_obstacle << std::endl;
       }
 
       // if (valid_coords = _costmap->worldToMap(xi[0], xi[1], mx, my)) {
@@ -185,7 +193,8 @@ public:
         // }
 
         if (xi[0] >= 0 && xi[0] <= _voronoi->getSizeX() && xi[1]>= 0 && xi[1] <= _voronoi->getSizeY()) {
-          addObstacleJacobian(_params.costmap_weight, xi[0], xi[1], costmap_cost, grad_x_raw, grad_y_raw);
+          addObstacleJacobian(_params.obstacle_weight, xi[0], xi[1], obs_dist, grad_x_raw, grad_y_raw);
+          addVoronoiJacobian(_params.voronoi_weight, _params.alpha, xi, obs_dist, voronoi_dist, closest_obstacle, closest_voronoi_pt, grad_x_raw, grad_y_raw);
         }
 
     
@@ -496,6 +505,83 @@ protected:
 
     //r += weight * value * value;  // objective function value
   }
+
+
+
+  /**
+   * @brief Cost function term for steering away from obstacles
+   * @param weight Weight to apply to function
+   * @param value Point Xi's cost'
+   * @param params computed values to reduce overhead
+   * @param r Residual (cost) of term
+   */
+  inline void addVoronoiResidual(
+    const double & weight,
+    const double & alpha, //falloff rate for voronoi field
+    const double & obs,
+    const double & voronoi,
+    double & r) const
+  {
+    if (obs > Constants::obsDMax) {
+      return;
+    }
+
+    double voronoi_r = weight * (alpha / (alpha + obs)) * (pow(obs - Constants::obsDMax, 2) / pow(Constants::obsDMax, 2)) * (voronoi / (voronoi + obs));
+    
+    r += voronoi_r;
+
+    std::cout << "Voronoi residual is: " << voronoi_r << std::endl;  
+  }
+
+
+
+
+  /**
+   * @brief Cost function derivative term for steering away from obstacles
+   * @param weight Weight to apply to function
+   * @param mx Point Xi's x coordinate in map frame
+   * @param mx Point Xi's y coordinate in map frame
+   * @param value Point Xi's cost'
+   * @param params computed values to reduce overhead
+   * @param j0 Gradient of X term
+   * @param j1 Gradient of Y term
+   */
+  inline void addVoronoiJacobian(
+    const double & weight,
+    const double & alpha, //falloff rate for voronoi field
+    const Eigen::Vector2d & xi,
+    const double & obs,
+    const double & voronoi,
+    const Eigen::Vector2d & closest_obs,
+    const Eigen::Vector2d & closest_voronoi,
+    double & j0,
+    double & j1) const
+  {
+    Eigen::Vector2d gradient;
+    if (obs > Constants::obsDMax) {
+      return;
+    } // Maybe we should take this out for voronoi
+
+    Eigen::Vector2d obsVct ((xi[0] - closest_obs[0]), (xi[1] - closest_obs[1]));
+    Eigen::Vector2d edgVct ((xi[0] - closest_voronoi[0]), (xi[1] - closest_voronoi[1]));
+
+    if (obs <= Constants::obsDMax && obs > 1e-6) {
+      if (voronoi > 0) {
+        Eigen::Vector2d PobsDst_Pxi = obsVct / obs;
+        Eigen::Vector2d PedgDst_Pxi = edgVct / voronoi;
+        float PvorPtn_PedgDst = (alpha / (alpha + obs)) *
+                                (pow((obs - Constants::obsDMax), 2) / pow(Constants::obsDMax, 2)) * (obs / pow((obs + voronoi), 2));
+
+        float PvorPtn_PobsDst = (alpha / (alpha + obs)) * (voronoi / (voronoi + obs)) * ((obs - Constants::obsDMax) / pow(Constants::obsDMax, 2))
+                                * (-(obs - Constants::obsDMax) / (alpha + obs) - (obs - Constants::obsDMax) / (obs + voronoi) + 2);
+        gradient = weight * (PvorPtn_PobsDst * PobsDst_Pxi + PvorPtn_PedgDst * PedgDst_Pxi);
+
+        j0 += gradient[0];
+        j1 += gradient[1];
+      }
+    }
+  }
+ 
 
   /**
    * @brief Cost function derivative term for steering away from obstacles

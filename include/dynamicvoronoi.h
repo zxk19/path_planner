@@ -6,7 +6,8 @@
 #include <stdio.h>
 #include <limits.h>
 #include <queue>
-
+#include <unordered_map>
+#include "Eigen/Core"
 #include "bucketedqueue.h"
 
 namespace HybridAStar {
@@ -34,6 +35,8 @@ class DynamicVoronoi {
   void update(bool updateRealDist = true);
   //! prune the Voronoi diagram
   void prune();
+
+  void CollectVoronoiEdgePoints();
 
   //! returns the obstacle distance at the specified location
   float getDistance(int x, int y) const;
@@ -79,6 +82,9 @@ class DynamicVoronoi {
   inline bool isOccupied(int& x, int& y, dataCell& c);
   inline markerMatchResult markerMatch(int x, int y);
 
+  Eigen::Vector2d GetClosestVoronoiEdgePoint(Eigen::Vector2d xi, double& closest_dis);
+  Eigen::Vector2d GetClosestObstacle(int x, int y) const;
+
   // queues
 
   BucketPrioQueue open;
@@ -99,6 +105,11 @@ class DynamicVoronoi {
   double doubleThreshold;
 
   double sqrt2;
+
+  std::string ComputeIndex(const Eigen::Vector2d& pi) const;
+
+  std::vector<Eigen::Vector2d> edge_points_;
+  std::unordered_map<std::string, std::pair<Eigen::Vector2d, float>> closest_edge_points_;
 
   //  dataCell** getData(){ return data; }
 };

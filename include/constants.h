@@ -143,7 +143,9 @@ struct config {
 // SMOOTHER SPECIFIC
 /// [m] --- The minimum width of a safe road for the vehicle at hand
 static const float minRoadWidth = 2; //2
-static const float obsDMax = 2; //2
+static const float obsDMax = 5; //2
+/// maximum distance for obstacles to influence the voronoi field
+static const float vorObsDMax = 5*minRoadWidth;
 
 // ____________________________________________
 // COLOR DEFINITIONS FOR VISUALIZATION PURPOSES
@@ -181,12 +183,14 @@ struct SmootherParams{
   }
 
   double smooth_weight{30000}; //0.0 30000
-  double costmap_weight{0.025}; 
+  double obstacle_weight{0.025}; 
   double distance_weight{0.0};
+  double voronoi_weight{0.0};
   double curvature_weight{30.0};
   double max_curvature{6.0};
   double costmap_factor{1.0}; //10.0
   double max_time{0.1};  //0.1
+  double alpha{0.1}; // falloff rate for the voronoi firld
 };
 
 
