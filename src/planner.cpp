@@ -31,13 +31,13 @@ Planner::Planner() {
   // INITIALIZE SMOOTHER PARAMS
   Constants::OptimizerParams params;
   params.debug = true;
-  smoother_params.max_curvature = 6.0;
-  smoother_params.curvature_weight = 0.0; // 30.0;
+  smoother_params.max_curvature = 0.2; //should be 1/min_radius 0.2
+  smoother_params.curvature_weight = 20.0; // 30.0;
   smoother_params.distance_weight = 0.0; // 1000.0;
   smoother_params.smooth_weight = 0; // 30; //0.0 //100
   smoother_params.obstacle_weight = 0.0;  // 25; //0.025 //100
-  smoother_params.voronoi_weight = 100.0;  // 25; //0.025 //100
-  smoother_params.alpha = 1; //0.1
+  smoother_params.voronoi_weight = 0.0;  // 25; //0.025 //100
+  smoother_params.alpha = 0.1; //0.1
   smoother.initialize(params);
 };
 

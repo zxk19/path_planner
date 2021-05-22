@@ -1,19 +1,5 @@
-// Copyright (c) 2020, Samsung Research America
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License. Reserved.
-
-#ifndef NAV2_SMAC_PLANNER__SMOOTHER_COST_FUNCTION_HPP_
-#define NAV2_SMAC_PLANNER__SMOOTHER_COST_FUNCTION_HPP_
+#ifndef SMOOTHER_COST_FUNCTION_H
+#define SMOOTHER_COST_FUNCTION_H
 
 #include <cmath>
 #include <vector>
@@ -30,27 +16,24 @@
 #include "constants.h"
 #include "dynamicvoronoi.h"
 
-//#include "nav2_smac_planner/types.hpp"
-//#include "nav2_costmap_2d/costmap_2d.hpp"
-//#include "nav2_smac_planner/options.hpp"
-
 #define EPSILON 0.0001
 
 namespace HybridAStar
 {
 
 /**
- * @struct nav2_smac_planner::UnconstrainedSmootherCostFunction
+ * @struct HybridAStar::UnconstrainedSmootherCostFunction
  * @brief Cost function for path smoothing with multiple terms
- * including curvature, smoothness, collision, and avoid obstacles.
+ * including curvature, smoothness, collision, voronoi, and avoid obstacles.
  */
 class UnconstrainedSmootherCostFunction : public ceres::FirstOrderFunction
 {
 public:
   /**
-   * @brief A constructor for nav2_smac_planner::UnconstrainedSmootherCostFunction
+   * @brief A constructor for UnconstrainedSmootherCostFunction
    * @param original_path Original unsmoothed path to smooth
-   * @param costmap A costmap to get values for collision and obstacle avoidance
+   * @param voronoi A voronoi field of the map to get values for nearest obstacle and voronoi edge
+   * @param params The smoother parameters
    */
   UnconstrainedSmootherCostFunction(
     std::vector<Eigen::Vector2d> * original_path,
@@ -118,8 +101,6 @@ public:
     double cost_raw = 0.0;
     double grad_x_raw = 0.0;
     double grad_y_raw = 0.0;
-    //unsigned int mx, my;
-    //bool valid_coords = true;
     double obs_dist = 0.0;
     double voronoi_dist = 0.0;
     Eigen::Vector2d closest_voronoi_pt;
@@ -141,13 +122,8 @@ public:
       xi_p1 = Eigen::Vector2d(parameters[x_index + 2], parameters[y_index + 2]);
       xi_m1 = Eigen::Vector2d(parameters[x_index - 2], parameters[y_index - 2]); 
 
-      // compute cost
-      if (i >=2 && i < NumParameters() / 2 - 2){
-        xi_p2 = Eigen::Vector2d(parameters[x_index + 4], parameters[y_index + 4]);
-        xi_m2 = Eigen::Vector2d(parameters[x_index - 4], parameters[y_index - 4]);
-        addSmoothingResidual(_params.smooth_weight, xi, xi_p1, xi_m1, xi_p2, xi_m2, cost_raw);
-      }
-      
+      /*********** compute cost ***********/
+      addSmoothingResidual(_params.smooth_weight, xi, xi_p1, xi_m1, cost_raw);
       addCurvatureResidual(_params.curvature_weight, xi, xi_p1, xi_m1, curvature_params, cost_raw);
       addDistanceResidual(_params.distance_weight, xi, _original_path->at(i), cost_raw);
 
@@ -157,52 +133,30 @@ public:
         closest_voronoi_pt = _voronoi->GetClosestVoronoiEdgePoint(xi, voronoi_dist);
         addObstacleResidual(_params.obstacle_weight, obs_dist, cost_raw);
         addVoronoiResidual(_params.voronoi_weight, _params.alpha, obs_dist, voronoi_dist, cost_raw);
-        //std::cout << "Distance to the nearest obstacle is: " << costmap_cost << std::endl;
-        std::cout << "************Current position is: " << xi << std::endl;
-        std::cout << "Distance to the nearest obstacle is: " << obs_dist << " Point is: " << closest_obstacle << std::endl;
+        //std::cout << "Current position is: " << xi << std::endl;
+        //std::cout << "Distance to the nearest obstacle is: " << obs_dist << " Point is: " << closest_obstacle << std::endl;
       }
 
-      // if (valid_coords = _costmap->worldToMap(xi[0], xi[1], mx, my)) {
-      //   costmap_cost = _costmap->getCost(mx, my);
-      //   addCostResidual(_params.costmap_weight, costmap_cost, cost_raw);
-      // }
-
-      // the distance to the closest obstacle from the current node
-      //costmap_cost = _voronoi->getDistance(xi[0], xi[1]);
-      //std::cout << "Closest distance to obstacle is: " << costmap_cost << std::endl;
-      //costmap_cost = _voronoi.getDistance(xi[0], xi[1]);
-      //addObstacleResidual(_params.costmap_weight, costmap_cost, cost_raw);
-
-
+      /*********** compute gradient ***********/
       if (gradient != NULL) {
-        // compute gradient
         gradient[x_index] = 0.0;
-        gradient[y_index] = 0.0;
-        if (i >=2 && i < NumParameters() / 2 - 2){
-          addSmoothingJacobian(_params.smooth_weight, xi, xi_p1, xi_m1, xi_p2, xi_m2, grad_x_raw, grad_y_raw);
-        }     
-        addCurvatureJacobian(
-          _params.curvature_weight, xi, xi_p1, xi_m1, curvature_params,
-          grad_x_raw, grad_y_raw);
-        addDistanceJacobian(
-          _params.distance_weight, xi, _original_path->at(
-            i), grad_x_raw, grad_y_raw);
+        gradient[y_index] = 0.0;    
 
-        // if (valid_coords) {
-        //   addCostJacobian(_params.costmap_weight, mx, my, costmap_cost, grad_x_raw, grad_y_raw);
-        // }
+        addSmoothingJacobian(_params.smooth_weight, xi, xi_p1, xi_m1, grad_x_raw, grad_y_raw);
+
+        addCurvatureJacobian(_params.curvature_weight, xi, xi_p1, xi_m1, curvature_params, grad_x_raw, grad_y_raw);
+
+        addDistanceJacobian(_params.distance_weight, xi, _original_path->at(i), grad_x_raw, grad_y_raw);
 
         if (xi[0] >= 0 && xi[0] <= _voronoi->getSizeX() && xi[1]>= 0 && xi[1] <= _voronoi->getSizeY()) {
           addObstacleJacobian(_params.obstacle_weight, xi[0], xi[1], obs_dist, grad_x_raw, grad_y_raw);
           addVoronoiJacobian(_params.voronoi_weight, _params.alpha, xi, obs_dist, voronoi_dist, closest_obstacle, closest_voronoi_pt, grad_x_raw, grad_y_raw);
         }
-
     
         gradient[x_index] = grad_x_raw;
         gradient[y_index] = grad_y_raw;
 
-        std::cout << "****" << "Total gradient is: " << grad_x_raw << "|" << grad_y_raw << "****" << std::endl;
-
+        //std::cout << "Total gradient is: " << grad_x_raw << "|" << grad_y_raw << "****" << std::endl;
       }
     }
 
@@ -229,36 +183,21 @@ protected:
   inline void addSmoothingResidual(
     const double & weight,
     const Eigen::Vector2d & pt,
-    const Eigen::Vector2d & pt_p1,
-    const Eigen::Vector2d & pt_m1,
-    const Eigen::Vector2d & pt_p2,
-    const Eigen::Vector2d & pt_m2,
+    const Eigen::Vector2d & pt_p,
+    const Eigen::Vector2d & pt_m,
     double & r) const
   {
-    // double smooth_r = weight * (
-    //   pt_p.dot(pt_p) -
-    //   4 * pt_p.dot(pt) +
-    //   2 * pt_p.dot(pt_m) +
-    //   4 * pt.dot(pt) -
-    //   4 * pt.dot(pt_m) +
-    //   pt_m.dot(pt_m));    // objective function value
-
     double smooth_r = weight * (
-      (pt_p2 - 2 * pt_p1 + pt).dot(pt_p2 - 2 * pt_p1 + pt) +
-      (pt_p1 - 2 * pt + pt_m1).dot(pt_p1 - 2 * pt + pt_m1) +
-      (pt - 2 * pt_m1 + pt_m2).dot(pt - 2 * pt_m1 + pt_m2));    // objective function value
+      pt_p.dot(pt_p) -
+      4 * pt_p.dot(pt) +
+      2 * pt_p.dot(pt_m) +
+      4 * pt.dot(pt) -
+      4 * pt.dot(pt_m) +
+      pt_m.dot(pt_m));    // objective function value
 
     r += smooth_r;
 
-    std::cout << "Smoothing residual is: " << smooth_r << std::endl;
-
-    // r += weight * (
-    //   pt_p.dot(pt_p) -
-    //   4 * pt_p.dot(pt) +
-    //   2 * pt_p.dot(pt_m) +
-    //   4 * pt.dot(pt) -
-    //   4 * pt.dot(pt_m) +
-    //   pt_m.dot(pt_m));    // objective function value
+    //std::cout << "Smoothing residual is: " << smooth_r << std::endl;
   }
 
   /**
@@ -273,30 +212,19 @@ protected:
   inline void addSmoothingJacobian(
     const double & weight,
     const Eigen::Vector2d & pt,
-    const Eigen::Vector2d & pt_p1,
-    const Eigen::Vector2d & pt_m1,
-    const Eigen::Vector2d & pt_p2,
-    const Eigen::Vector2d & pt_m2,
+    const Eigen::Vector2d & pt_p,
+    const Eigen::Vector2d & pt_m,
     double & j0,
     double & j1) const
   {
-    double smoothing_jacobian_0 = weight *
-      (pt_m2[0] -4 * pt_m1[0] + 6 * pt[0] - 4 * pt_p1[0] + pt_p2[0]);   // xi x component of partial-derivative
-      //(-4 * pt_m[0] + 8 * pt[0] - 4 * pt_p[0]);   // xi x component of partial-derivative
+    double smoothing_jacobian_0 = weight * (-4 * pt_m[0] + 8 * pt[0] - 4 * pt_p[0]);   // xi x component of partial-derivative
 
-    double smoothing_jacobian_1 = weight *
-      (pt_m2[1] -4 * pt_m1[1] + 6 * pt[1] - 4 * pt_p1[1] + pt_p2[1]);   // xi x component of partial-derivative
-      //(-4 * pt_m[1] + 8 * pt[1] - 4 * pt_p[1]);   // xi y component of partial-derivative
+    double smoothing_jacobian_1 = weight * (-4 * pt_m[1] + 8 * pt[1] - 4 * pt_p[1]);   // xi y component of partial-derivative
 
     j0 += smoothing_jacobian_0;
     j1 += smoothing_jacobian_1;  
 
-    std::cout << "Smoothing jacobian is: " << smoothing_jacobian_0 << "|" << smoothing_jacobian_1 << std::endl;
-    
-    // j0 += weight *
-    //   (-4 * pt_m[0] + 8 * pt[0] - 4 * pt_p[0]);   // xi x component of partial-derivative
-    // j1 += weight *
-    //   (-4 * pt_m[1] + 8 * pt[1] - 4 * pt_p[1]);   // xi y component of partial-derivative
+    //std::cout << "Smoothing jacobian is: " << smoothing_jacobian_0 << "|" << smoothing_jacobian_1 << std::endl;
   }
 
   /**
@@ -356,9 +284,6 @@ protected:
     std::cout << "Curvature residual is: " << curvature_r << std::endl;  
 
     r += curvature_r;
-
-    // r += weight *
-    //   curvature_params.ki_minus_kmax * curvature_params.ki_minus_kmax;  // objective function value
   }
 
   /**
@@ -386,7 +311,7 @@ protected:
 
     const double & partial_delta_phi_i_wrt_cost_delta_phi_i =
       -1 / std::sqrt(1 - std::pow(std::cos(curvature_params.delta_phi_i), 2));
-    // const Eigen::Vector2d ones = Eigen::Vector2d(1.0, 1.0);
+
     auto neg_pt_plus = -1 * pt_p;
     Eigen::Vector2d p1 = normalizedOrthogonalComplement(
       pt, neg_pt_plus, curvature_params.delta_xi_norm, curvature_params.delta_xi_p_norm);
@@ -404,28 +329,14 @@ protected:
 
     const Eigen::Vector2d jacobian = u *
       (common_prefix * (-p1 - p2) - (common_suffix * d_delta_xi_d_xi));
-   // const Eigen::Vector2d jacobian_im1 = u *
-   //   (common_prefix * p2 + (common_suffix * d_delta_xi_d_xi));
-   // const Eigen::Vector2d jacobian_ip1 = u * (common_prefix * p1);
-
-    // Old formulation we may require again.
-    // j0 += weight *
-    //   (jacobian_im1[0] + 2 * jacobian[0] + jacobian_ip1[0]);
-    // j1 += weight *
-    //   (jacobian_im1[1] + 2 * jacobian[1] + jacobian_ip1[1]);
 
     double curvature_jacobian_0 = weight * jacobian[0];  // xi x component of partial-derivative
     double curvature_jacobian_1 = weight * jacobian[1];  // xi x component of partial-derivative 
-
 
     std::cout << "Curvature jacobian is: " << curvature_jacobian_0 << "|" << curvature_jacobian_1 << std::endl;
 
     j0 += curvature_jacobian_0;
     j1 += curvature_jacobian_1;
-
-
-    //j0 += weight * jacobian[0];  // xi x component of partial-derivative
-    //j1 += weight * jacobian[1];  // xi x component of partial-derivative
   }
 
   /**
@@ -445,9 +356,7 @@ protected:
 
     r += distance_r; 
 
-    std::cout << "Distance residual is: " << distance_r << std::endl;  
-    
-    //r += weight * (xi - xi_original).dot(xi - xi_original);  // objective function value
+    //std::cout << "Distance residual is: " << distance_r << std::endl;  
   }
 
   /**
@@ -471,10 +380,7 @@ protected:
     j0 += distance_jacobian_0;
     j1 += distance_jacobian_1;
     
-    std::cout << "Distance jacobian is: " << distance_jacobian_0 << "|" << distance_jacobian_1 << std::endl;
-
-    //j0 += weight * 2 * (xi[0] - xi_original[0]);  // xi y component of partial-derivative
-    //j1 += weight * 2 * (xi[1] - xi_original[1]);  // xi y component of partial-derivative
+    //std::cout << "Distance jacobian is: " << distance_jacobian_0 << "|" << distance_jacobian_1 << std::endl;
   }
 
 
@@ -490,20 +396,17 @@ protected:
     const double & value,
     double & r) const
   {
-    std::cout << "*****Original distance to Obstacle is: " << value << std::endl;
+    //std::cout << "*****Original distance to Obstacle is: " << value << std::endl;
 
     if (value > Constants::obsDMax) {
       return;
     }
 
-    //double obstacle_r = -weight * value * value;  // objective function value
     double obstacle_r = weight * (value - Constants::obsDMax) * (value - Constants::obsDMax);  // objective function value
 
     r += obstacle_r;
 
-    std::cout << "Obstacle residual is: " << obstacle_r << std::endl;  
-
-    //r += weight * value * value;  // objective function value
+    //std::cout << "Obstacle residual is: " << obstacle_r << std::endl;  
   }
 
 
@@ -530,11 +433,8 @@ protected:
     
     r += voronoi_r;
 
-    std::cout << "Voronoi residual is: " << voronoi_r << std::endl;  
+    //std::cout << "Voronoi residual is: " << voronoi_r << std::endl;  
   }
-
-
-
 
   /**
    * @brief Cost function derivative term for steering away from obstacles
@@ -581,7 +481,6 @@ protected:
       }
     }
   }
- 
 
   /**
    * @brief Cost function derivative term for steering away from obstacles
@@ -615,15 +514,11 @@ protected:
     j0 += obstacle_jacobian_0;
     j1 += obstacle_jacobian_1;
 
-    std::cout << "Obstacle jacobian is: " << obstacle_jacobian_0 << "|" << obstacle_jacobian_1 << std::endl;
-
-    //j0 += common_prefix * grad[0];  // xi x component of partial-derivative
-    //j1 += common_prefix * grad[1];  // xi y component of partial-derivative
+    //std::cout << "Obstacle jacobian is: " << obstacle_jacobian_0 << "|" << obstacle_jacobian_1 << std::endl;
   }
 
   /**
-   * @brief Computing the gradient of the costmap using
-   * the 2 point numerical differentiation method
+   * @brief Computing the gradient of the costmap using the 2 point numerical differentiation method
    * @param mx Point Xi's x coordinate in map frame
    * @param mx Point Xi's y coordinate in map frame
    * @param params Params reference to store gradients
@@ -714,11 +609,9 @@ protected:
   std::vector<Eigen::Vector2d> * _original_path{nullptr};
   int _num_params;
   DynamicVoronoi * _voronoi{nullptr};
-  //DynamicVoronoi _voronoi;
-
   HybridAStar::Constants::SmootherParams _params;
 };
 
-}  // namespace nav2_smac_planner
+}  // namespace HybridAStar
 
-#endif  // NAV2_SMAC_PLANNER__SMOOTHER_COST_FUNCTION_HPP_
+#endif  // SMOOTHER_COST_FUNCTION_H

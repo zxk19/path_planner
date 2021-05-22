@@ -143,7 +143,7 @@ struct config {
 // SMOOTHER SPECIFIC
 /// [m] --- The minimum width of a safe road for the vehicle at hand
 static const float minRoadWidth = 2; //2
-static const float obsDMax = 5; //2
+static const float obsDMax = 2; //2
 /// maximum distance for obstacles to influence the voronoi field
 static const float vorObsDMax = 5*minRoadWidth;
 
