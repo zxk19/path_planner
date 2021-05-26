@@ -67,6 +67,19 @@ class Smoother {
   /// voronoiCost - trade off between path length and closeness to obstaclesg
   //   Vector2D voronoiTerm(Vector2D xi);
 
+  //###################################################
+  //                                     CUSP DETECTION
+  //###################################################
+  inline bool isCusp(const std::vector<Node3D>& path, int i) {
+    bool revim2 = path[i - 2].getPrim() >= 3 ;
+    bool revim1 = path[i - 1].getPrim() >= 3 ;
+    bool revi   = path[i].getPrim() >= 3 ;
+    bool revip1 = path[i + 1].getPrim() >= 3 ;
+    //  bool revip2 = path[i + 2].getPrim() > 3 ;
+
+    return (revim2 != revim1 || revim1 != revi || revi != revip1);
+  }
+
   /// a boolean test, whether vector is on the grid or not
   bool isOnGrid(Vector2D vec) {
     if (vec.getX() >= 0 && vec.getX() < width &&
@@ -140,15 +153,18 @@ class Smoother {
     // populate our smoothing paths
     std::vector<Eigen::Vector2d> initial_path;
     double parameters[this->path.size() * 2];  // NOLINT
+    std::vector<bool> prims; // motion primitives, for finding the gear shifting points
 
     for (uint i = 0; i != this->path.size(); i++) {
       parameters[2 * i] = this->path[i].getX();
       parameters[2 * i + 1] = this->path[i].getY();
+      prims.push_back(isCusp(this->path, i));
       initial_path.push_back(Eigen::Vector2d(this->path[i].getX(),this->path[i].getY()));
     }
 
+
     ceres::GradientProblemSolver::Summary summary;
-    ceres::GradientProblem problem(new UnconstrainedSmootherCostFunction(&initial_path, voronoi, params));
+    ceres::GradientProblem problem(new UnconstrainedSmootherCostFunction(&initial_path, &prims, voronoi, params));
     ceres::Solve(_options, problem, parameters, &summary);
 
     if (_debug) {
@@ -188,7 +204,7 @@ class Smoother {
   /// maximum distance to obstacles that is penalized
   float obsDMax = 4; //Constants::minRoadWidth;
   /// maximum distance for obstacles to influence the voronoi field
-  float vorObsDMax = Constants::minRoadWidth;
+  float vorObsDMax = 4; // Constants::minRoadWidth;
   /// falloff rate for the voronoi field
   float alpha = 0.1;
   /// weight for the obstacle term

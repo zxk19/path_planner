@@ -1,17 +1,6 @@
 #include "smoother.h"
 using namespace HybridAStar;
-//###################################################
-//                                     CUSP DETECTION
-//###################################################
-inline bool isCusp(const std::vector<Node3D>& path, int i) {
-  bool revim2 = path[i - 2].getPrim() > 3 ;
-  bool revim1 = path[i - 1].getPrim() > 3 ;
-  bool revi   = path[i].getPrim() > 3 ;
-  bool revip1 = path[i + 1].getPrim() > 3 ;
-  //  bool revip2 = path[i + 2].getPrim() > 3 ;
 
-  return (revim2 != revim1 || revim1 != revi || revi != revip1);
-}
 //###################################################
 //                                SMOOTHING ALGORITHM
 //###################################################
@@ -31,6 +20,14 @@ void Smoother::smoothPath(DynamicVoronoi& voronoi) {
   pathLength = path.size();
   std::vector<Node3D> newPath = path;
 
+  for (int i = 0; i < pathLength - 1; ++i) {
+
+    Vector2D xi(newPath[i].getX(), newPath[i].getY());
+      
+    std::cout << "**************Cusp: " << newPath[i].getPrim() << std::endl;
+
+  }
+
   // descent along the gradient untill the maximum number of iterations has been reached
   float totalWeight = wSmoothness + wCurvature + wVoronoi + wObstacle;
 
@@ -45,14 +42,17 @@ void Smoother::smoothPath(DynamicVoronoi& voronoi) {
       Vector2D xip1(newPath[i + 1].getX(), newPath[i + 1].getY());
       Vector2D xip2(newPath[i + 2].getX(), newPath[i + 2].getY());
       Vector2D correction;
-
+      
+      //std::cout << "**************Cusp: " << newPath[i].getPrim() << std::endl;
 
       // the following points shall not be smoothed
       // keep these points fixed if they are a cusp point or adjacent to one
-      if (isCusp(newPath, i)) { continue; }
+      if (isCusp(newPath, i)) { 
+        //std::cout << "This is a CUSP Point!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
+        continue; }
 
       correction = correction - obstacleTerm(xi);
-      if (!isOnGrid(xi + correction)) { continue; }
+      if (!isOnGrid(xi + correction)) {continue; }
 
       //todo not implemented yet
       // voronoiTerm(); 

@@ -37,9 +37,11 @@ public:
    */
   UnconstrainedSmootherCostFunction(
     std::vector<Eigen::Vector2d> * original_path,
+    std::vector<bool> * prims,
     DynamicVoronoi & voronoi,
     const Constants::SmootherParams & params)
   : _original_path(original_path),
+    _prims(prims),
     _num_params(2 * original_path->size()),
     _voronoi(&voronoi),
     _params(params)
@@ -105,6 +107,8 @@ public:
     double voronoi_dist = 0.0;
     Eigen::Vector2d closest_voronoi_pt;
     Eigen::Vector2d closest_obstacle;
+    float totalWeight = _params.smooth_weight + _params.distance_weight + _params.obstacle_weight + _params.voronoi_weight + _params.curvature_weight;
+
 
     // cache some computations between the residual and jacobian
     CurvatureComputations curvature_params;
@@ -114,17 +118,23 @@ public:
       y_index = 2 * i + 1;
       gradient[x_index] = 0.0;
       gradient[y_index] = 0.0;
-      if (i < 1 || i >= NumParameters() / 2 - 1) {
-        continue;
-      }
 
       xi = Eigen::Vector2d(parameters[x_index], parameters[y_index]);
       xi_p1 = Eigen::Vector2d(parameters[x_index + 2], parameters[y_index + 2]);
       xi_m1 = Eigen::Vector2d(parameters[x_index - 2], parameters[y_index - 2]); 
 
+      // Make sure the start and end points are not changed.
+      if (i < 1 || i >= NumParameters() / 2 - 1) {
+        continue;
+      }
+      // Make sure the cusp points are not changed
+      if (_prims->at(i)) {
+        //std::cout << "******************CUSP AT: " << i << "Coordinates are: " << xi << std::endl;
+        continue;}
+
       /*********** compute cost ***********/
       addSmoothingResidual(_params.smooth_weight, xi, xi_p1, xi_m1, cost_raw);
-      addCurvatureResidual(_params.curvature_weight, xi, xi_p1, xi_m1, curvature_params, cost_raw);
+      //addCurvatureResidual(_params.curvature_weight, xi, xi_p1, xi_m1, curvature_params, cost_raw);
       addDistanceResidual(_params.distance_weight, xi, _original_path->at(i), cost_raw);
 
       if (xi[0] >= 0 && xi[0] <= _voronoi->getSizeX() && xi[1]>= 0 && xi[1] <= _voronoi->getSizeY()) {
@@ -137,6 +147,8 @@ public:
         //std::cout << "Distance to the nearest obstacle is: " << obs_dist << " Point is: " << closest_obstacle << std::endl;
       }
 
+      std::cout << "Total Cost Residual is: " << cost_raw << std::endl;
+
       /*********** compute gradient ***********/
       if (gradient != NULL) {
         gradient[x_index] = 0.0;
@@ -144,20 +156,23 @@ public:
 
         addSmoothingJacobian(_params.smooth_weight, xi, xi_p1, xi_m1, grad_x_raw, grad_y_raw);
 
-        addCurvatureJacobian(_params.curvature_weight, xi, xi_p1, xi_m1, curvature_params, grad_x_raw, grad_y_raw);
+        //addCurvatureJacobian(_params.curvature_weight, xi, xi_p1, xi_m1, curvature_params, grad_x_raw, grad_y_raw);
 
         addDistanceJacobian(_params.distance_weight, xi, _original_path->at(i), grad_x_raw, grad_y_raw);
 
         if (xi[0] >= 0 && xi[0] <= _voronoi->getSizeX() && xi[1]>= 0 && xi[1] <= _voronoi->getSizeY()) {
           addObstacleJacobian(_params.obstacle_weight, xi[0], xi[1], obs_dist, grad_x_raw, grad_y_raw);
+          //addObstacleJacobian(_params.obstacle_weight, xi[0], xi[1], obs_dist, closest_obstacle, grad_x_raw, grad_y_raw);
           addVoronoiJacobian(_params.voronoi_weight, _params.alpha, xi, obs_dist, voronoi_dist, closest_obstacle, closest_voronoi_pt, grad_x_raw, grad_y_raw);
         }
     
-        gradient[x_index] = grad_x_raw;
-        gradient[y_index] = grad_y_raw;
+        gradient[x_index] = grad_x_raw * _params.alpha / totalWeight;
+        gradient[y_index] = grad_y_raw * _params.alpha / totalWeight;
 
-        //std::cout << "Total gradient is: " << grad_x_raw << "|" << grad_y_raw << "****" << std::endl;
+        std::cout << "Total gradient is: " << grad_x_raw << "|" << grad_y_raw << "****" << std::endl;
       }
+
+      
     }
 
     cost[0] = cost_raw;
@@ -197,7 +212,7 @@ protected:
 
     r += smooth_r;
 
-    //std::cout << "Smoothing residual is: " << smooth_r << std::endl;
+    std::cout << "Smoothing residual is: " << smooth_r << std::endl;
   }
 
   /**
@@ -224,7 +239,7 @@ protected:
     j0 += smoothing_jacobian_0;
     j1 += smoothing_jacobian_1;  
 
-    //std::cout << "Smoothing jacobian is: " << smoothing_jacobian_0 << "|" << smoothing_jacobian_1 << std::endl;
+    std::cout << "Smoothing jacobian is: " << smoothing_jacobian_0 << "|" << smoothing_jacobian_1 << std::endl;
   }
 
   /**
@@ -272,16 +287,19 @@ protected:
 
     curvature_params.ki_minus_kmax = curvature_params.turning_rad - _params.max_curvature;
 
+    //std::cout << "*********Curvature now is: " << curvature_params.turning_rad << " Max Curvature is: " << _params.max_curvature << std::endl;
+
     if (curvature_params.ki_minus_kmax <= EPSILON) {
       // Quadratic penalty need not apply
       curvature_params.valid = false;
       return;
     }
 
-    double curvature_r = weight *
-      curvature_params.ki_minus_kmax * curvature_params.ki_minus_kmax;  // objective function value
+    //double curvature_r = weight * curvature_params.ki_minus_kmax * curvature_params.ki_minus_kmax;  // objective function value
 
-    std::cout << "Curvature residual is: " << curvature_r << std::endl;  
+    double curvature_r = weight * curvature_params.ki_minus_kmax;  // objective function value
+
+    //std::cout << "Curvature residual is: " << curvature_r << std::endl;  
 
     r += curvature_r;
   }
@@ -318,9 +336,12 @@ protected:
     Eigen::Vector2d p2 = normalizedOrthogonalComplement(
       neg_pt_plus, pt, curvature_params.delta_xi_p_norm, curvature_params.delta_xi_norm);
 
-    const double & u = 2 * curvature_params.ki_minus_kmax;
+    //const double & u = 2 * curvature_params.ki_minus_kmax;
+
+    const double & u = 1;
+
     const double & common_prefix =
-      (1 / curvature_params.delta_xi_norm) * partial_delta_phi_i_wrt_cost_delta_phi_i;
+      -(1 / curvature_params.delta_xi_norm) * partial_delta_phi_i_wrt_cost_delta_phi_i;
     const double & common_suffix = curvature_params.delta_phi_i /
       (curvature_params.delta_xi_norm * curvature_params.delta_xi_norm);
 
@@ -356,7 +377,7 @@ protected:
 
     r += distance_r; 
 
-    //std::cout << "Distance residual is: " << distance_r << std::endl;  
+    std::cout << "Distance residual is: " << distance_r << std::endl;  
   }
 
   /**
@@ -380,35 +401,8 @@ protected:
     j0 += distance_jacobian_0;
     j1 += distance_jacobian_1;
     
-    //std::cout << "Distance jacobian is: " << distance_jacobian_0 << "|" << distance_jacobian_1 << std::endl;
+    std::cout << "Distance jacobian is: " << distance_jacobian_0 << "|" << distance_jacobian_1 << std::endl;
   }
-
-
-  /**
-   * @brief Cost function term for steering away from obstacles
-   * @param weight Weight to apply to function
-   * @param value Point Xi's cost'
-   * @param params computed values to reduce overhead
-   * @param r Residual (cost) of term
-   */
-  inline void addObstacleResidual(
-    const double & weight,
-    const double & value,
-    double & r) const
-  {
-    //std::cout << "*****Original distance to Obstacle is: " << value << std::endl;
-
-    if (value > Constants::obsDMax) {
-      return;
-    }
-
-    double obstacle_r = weight * (value - Constants::obsDMax) * (value - Constants::obsDMax);  // objective function value
-
-    r += obstacle_r;
-
-    //std::cout << "Obstacle residual is: " << obstacle_r << std::endl;  
-  }
-
 
 
   /**
@@ -425,7 +419,7 @@ protected:
     const double & voronoi,
     double & r) const
   {
-    if (obs > Constants::obsDMax) {
+    if (obs > Constants::vorObsDMax) {
       return;
     }
 
@@ -433,7 +427,7 @@ protected:
     
     r += voronoi_r;
 
-    //std::cout << "Voronoi residual is: " << voronoi_r << std::endl;  
+    std::cout << "Voronoi residual is: " << voronoi_r << std::endl;  
   }
 
   /**
@@ -458,15 +452,14 @@ protected:
     double & j1) const
   {
     Eigen::Vector2d gradient;
-    if (obs > Constants::obsDMax) {
-      return;
-    } // Maybe we should take this out for voronoi
+    // if (obs > Constants::obsDMax) {
+    //   return;
+    // } // Maybe we should take this out for voronoi
 
-    Eigen::Vector2d obsVct ((xi[0] - closest_obs[0]), (xi[1] - closest_obs[1]));
-    Eigen::Vector2d edgVct ((xi[0] - closest_voronoi[0]), (xi[1] - closest_voronoi[1]));
-
-    if (obs <= Constants::obsDMax && obs > 1e-6) {
+    if (obs <= Constants::vorObsDMax && obs > 1e-6) {
       if (voronoi > 0) {
+        Eigen::Vector2d obsVct ((xi[0] - closest_obs[0]), (xi[1] - closest_obs[1]));
+        Eigen::Vector2d edgVct ((xi[0] - closest_voronoi[0]), (xi[1] - closest_voronoi[1]));
         Eigen::Vector2d PobsDst_Pxi = obsVct / obs;
         Eigen::Vector2d PedgDst_Pxi = edgVct / voronoi;
         float PvorPtn_PedgDst = (alpha / (alpha + obs)) *
@@ -478,9 +471,39 @@ protected:
 
         j0 += gradient[0];
         j1 += gradient[1];
+        
+        std::cout << "Voronoi jacobian is: " << gradient[0] << "|" << gradient[1] << std::endl;
+
       }
     }
   }
+
+
+  /**
+  * @brief Cost function term for steering away from obstacles
+  * @param weight Weight to apply to function
+  * @param value Point Xi's cost'
+  * @param params computed values to reduce overhead
+  * @param r Residual (cost) of term
+  */
+  inline void addObstacleResidual(
+    const double & weight,
+    const double & value,
+    double & r) const
+  {
+    //std::cout << "*****Original distance to Obstacle is: " << value << std::endl;
+
+    if (value > Constants::obsDMax) {
+      return;
+    }
+
+    double obstacle_r = weight * (value - Constants::obsDMax) * (value - Constants::obsDMax);  // objective function value
+
+    r += obstacle_r;
+
+    //std::cout << "Obstacle residual is: " << obstacle_r << std::endl;  
+  }
+
 
   /**
    * @brief Cost function derivative term for steering away from obstacles
@@ -500,13 +523,13 @@ protected:
     double & j0,
     double & j1) const
   {
-    if (value > Constants::minRoadWidth) {
+    if (value > Constants::obsDMax) {
       return;
     }
 
     const Eigen::Vector2d grad = getCostmapGradient(mx, my);
 
-    const double common_prefix = -2.0 * _params.costmap_factor * weight * value;
+    const double common_prefix = 2.0 * _params.costmap_factor * weight * (value - Constants::obsDMax);
 
     double obstacle_jacobian_0 = common_prefix * grad[0];  // xi x component of partial-derivative
     double obstacle_jacobian_1 = common_prefix * grad[1];  // xi y component of partial-derivative
@@ -516,6 +539,43 @@ protected:
 
     //std::cout << "Obstacle jacobian is: " << obstacle_jacobian_0 << "|" << obstacle_jacobian_1 << std::endl;
   }
+
+
+  /**
+   * @brief Cost function derivative term for steering away from obstacles
+   * @param weight Weight to apply to function
+   * @param mx Point Xi's x coordinate in map frame
+   * @param mx Point Xi's y coordinate in map frame
+   * @param value Point Xi's cost'
+   * @param params computed values to reduce overhead
+   * @param j0 Gradient of X term
+   * @param j1 Gradient of Y term
+   */
+  /*inline void addObstacleJacobian(
+    const double & weight,
+    const unsigned int & mx,
+    const unsigned int & my,
+    const double & value,
+    const Eigen::Vector2d & closest_obs,
+    double & j0,
+    double & j1) const
+  {
+    if (value > Constants::obsDMax) {
+      return;
+    }
+      
+    Eigen::Vector2d obsVct ((mx - closest_obs[0]), (my - closest_obs[1]));
+    Eigen::Vector2d gradient = 2 * weight * (value - Constants::obsDMax)*obsVct/value;
+
+    double obstacle_jacobian_0 = gradient[0];  // xi x component of partial-derivative
+    double obstacle_jacobian_1 = gradient[1];  // xi y component of partial-derivative
+
+    j0 += obstacle_jacobian_0;
+    j1 += obstacle_jacobian_1;
+
+    //std::cout << "Obstacle jacobian is: " << obstacle_jacobian_0 << "|" << obstacle_jacobian_1 << std::endl;
+  }*/
+
 
   /**
    * @brief Computing the gradient of the costmap using the 2 point numerical differentiation method
@@ -607,6 +667,7 @@ protected:
   }
 
   std::vector<Eigen::Vector2d> * _original_path{nullptr};
+  std::vector<bool> * _prims{nullptr};
   int _num_params;
   DynamicVoronoi * _voronoi{nullptr};
   HybridAStar::Constants::SmootherParams _params;
