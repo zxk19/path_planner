@@ -75,9 +75,9 @@ class Smoother {
     bool revim1 = path[i - 1].getPrim() >= 3 ;
     bool revi   = path[i].getPrim() >= 3 ;
     bool revip1 = path[i + 1].getPrim() >= 3 ;
-    //  bool revip2 = path[i + 2].getPrim() > 3 ;
+    bool revip2 = path[i + 2].getPrim() >= 3 ;
 
-    return (revim2 != revim1 || revim1 != revi || revi != revip1);
+    return (revim2 != revim1 || revim1 != revi || revi != revip1 || revip1 != revip2); 
   }
 
   /// a boolean test, whether vector is on the grid or not
@@ -158,13 +158,17 @@ class Smoother {
     for (uint i = 0; i != this->path.size(); i++) {
       parameters[2 * i] = this->path[i].getX();
       parameters[2 * i + 1] = this->path[i].getY();
-      prims.push_back(isCusp(this->path, i));
+      if (i == 0 || i == 1 || i == (this->path.size() - 2) || i == (this->path.size() - 1) ) {
+        prims.push_back(true);
+      } else {
+        prims.push_back(isCusp(this->path, i));
+      }
       initial_path.push_back(Eigen::Vector2d(this->path[i].getX(),this->path[i].getY()));
     }
 
 
     ceres::GradientProblemSolver::Summary summary;
-    ceres::GradientProblem problem(new UnconstrainedSmootherCostFunction(&initial_path, &prims, voronoi, params));
+    ceres::GradientProblem problem(new UnconstrainedSmootherCostFunction(&initial_path, &prims, voronoi, params)); 
     ceres::Solve(_options, problem, parameters, &summary);
 
     if (_debug) {
@@ -182,6 +186,8 @@ class Smoother {
       this->path_smoothed[i].setY(parameters[2 * i + 1]);
       if (i != (this->path.size() - 1)){
         this->path_smoothed[i].setT(std::atan2((parameters[2 * i + 3] - parameters[2 * i + 1]), (parameters[2 * i + 2] - parameters[2 * i])));
+      } else{
+        this->path_smoothed[i].setT(this->path[i].getT());
       }
 
       if (!configurationSpace.isTraversable(&this->path_smoothed[i])) {

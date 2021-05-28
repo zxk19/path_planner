@@ -109,7 +109,6 @@ public:
     Eigen::Vector2d closest_obstacle;
     float totalWeight = _params.smooth_weight + _params.distance_weight + _params.obstacle_weight + _params.voronoi_weight + _params.curvature_weight;
 
-
     // cache some computations between the residual and jacobian
     CurvatureComputations curvature_params;
 
@@ -119,18 +118,20 @@ public:
       gradient[x_index] = 0.0;
       gradient[y_index] = 0.0;
 
-      xi = Eigen::Vector2d(parameters[x_index], parameters[y_index]);
-      xi_p1 = Eigen::Vector2d(parameters[x_index + 2], parameters[y_index + 2]);
-      xi_m1 = Eigen::Vector2d(parameters[x_index - 2], parameters[y_index - 2]); 
-
       // Make sure the start and end points are not changed.
       if (i < 1 || i >= NumParameters() / 2 - 1) {
         continue;
       }
+
       // Make sure the cusp points are not changed
       if (_prims->at(i)) {
-        //std::cout << "******************CUSP AT: " << i << "Coordinates are: " << xi << std::endl;
-        continue;}
+        std::cout << "******************CUSP AT: " << i << "Coordinates are: " << parameters[x_index] << "|" << parameters[y_index] << std::endl;
+        continue;
+      }
+
+      xi = Eigen::Vector2d(parameters[x_index], parameters[y_index]);
+      xi_p1 = Eigen::Vector2d(parameters[x_index + 2], parameters[y_index + 2]);
+      xi_m1 = Eigen::Vector2d(parameters[x_index - 2], parameters[y_index - 2]); 
 
       /*********** compute cost ***********/
       addSmoothingResidual(_params.smooth_weight, xi, xi_p1, xi_m1, cost_raw);
@@ -147,7 +148,7 @@ public:
         //std::cout << "Distance to the nearest obstacle is: " << obs_dist << " Point is: " << closest_obstacle << std::endl;
       }
 
-      std::cout << "Total Cost Residual is: " << cost_raw << std::endl;
+      //std::cout << "Total Cost Residual is: " << cost_raw << std::endl;
 
       /*********** compute gradient ***********/
       if (gradient != NULL) {
@@ -171,7 +172,6 @@ public:
 
         std::cout << "Total gradient is: " << grad_x_raw << "|" << grad_y_raw << "****" << std::endl;
       }
-
       
     }
 

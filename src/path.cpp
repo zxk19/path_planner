@@ -57,6 +57,10 @@ void Path::updatePath(const std::vector<Node3D>& nodePath) {
     k++;
   }
 
+  // Add node and vehicle for goal point
+  addNode(nodePath[0], k);
+  addVehicle(nodePath[0], k);
+
   return;
 }
 // ___________
