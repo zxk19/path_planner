@@ -536,7 +536,7 @@ void updateH_graph(Node3D& start, const Node3D& goal, Node2D* nodes2D, int width
 
   // for graph_guided, tune these numbers
   if (graphCost >= 3) {
-    start.setH(non_graph_cost + 2.5 * graphCost);
+    start.setH(non_graph_cost + 4 * graphCost);
   }
   else{
     start.setH(non_graph_cost);

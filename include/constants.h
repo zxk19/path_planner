@@ -97,7 +97,7 @@ static const float penaltyTurning = 1.05;  // 1.05
 /// [#] --- A movement cost penalty for reversing (choosing motion primitives > 2)
 static const float penaltyReversing = 2.0; // 2.0
 /// [#] --- A movement cost penalty for change of direction (changing from primitives < 3 to primitives > 2)
-static const float penaltyCOD = 4.0;       // 2.0  3.0 original 2.1  // for graph_guided, tune these numbers
+static const float penaltyCOD = 5.0;       // 2.0  3.0 original 2.1  // for graph_guided, tune these numbers
 /// [m] --- The distance to the goal when the analytical solution (Dubin's shot) first triggers
 static const float dubinsShotDistance = 100; // for free space planning
 /// [m] --- The distance to the goal when the analytical solution (Dubin's shot) first triggers
