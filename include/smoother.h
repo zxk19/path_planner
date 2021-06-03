@@ -191,12 +191,14 @@ class Smoother {
       }
 
       if (!configurationSpace.isTraversable(&this->path_smoothed[i])) {
-        collision_flag = true;
-        std::cout << "***************** Collision After Smooth!******************" << std::endl; 
-        break;
+        if (i != (this->path.size() - 1)){
+          collision_flag = true;
+          std::cout << "***************** Collision After Smooth!******************" << std::endl; 
+          break;
+        }       
       }
     }
-
+    
     if (!collision_flag){
      this->path = this->path_smoothed;
     }

@@ -2,6 +2,7 @@
 #define NODE2D_H
 
 #include <cmath>
+#include <algorithm>
 
 #include "constants.h"
 namespace HybridAStar {
@@ -73,11 +74,33 @@ class Node2D {
 
   // UPDATE METHODS
   /// Updates the cost-so-far for the node x' coming from its predecessor. It also discovers the node.
-  void updateG() { g += movementCost(*pred); d = true; }
+  void updateG() { 
+    // if (Constants::graph_guided){
+    //   int temp_x = 0;
+    //   int temp_y = 0;
+    //   int edge_dist = 0;
+
+    //   temp_x = std::abs(x - 7);
+    //   temp_x = std::min(temp_x, std::abs(x - 145));
+
+    //   temp_y = std::abs(y - 7);
+    //   temp_y = std::min(temp_y, std::abs(y - 19));
+    //   temp_y = std::min(temp_y, std::abs(y - 28));
+    //   temp_y = std::min(temp_y, std::abs(y - 41));
+
+    //   edge_dist = std::min(temp_x, temp_y);
+
+    //   if (edge_dist >= 1) {
+    //     g += (float) edge_dist;
+    //   }
+    // }
+    g += movementCost(*pred); 
+    d = true; 
+  }
   /// Updates the cost-to-go for the node x' to the goal node.
   void updateH(const Node2D& goal) { h = movementCost(goal); }
   /// The heuristic as well as the cost measure.
-  float movementCost(const Node2D& pred) const { return sqrt((x - pred.x) * (x - pred.x) + (y - pred.y) * (y - pred.y)); }
+  float movementCost(const Node2D& pred) const { return sqrt((x - pred.x) * (x - pred.x) + (y - pred.y) * (y - pred.y));}
 
   // CUSTOM OPERATORS
   /// Custom operator to compare nodes. Nodes are equal if their x and y position is the same.

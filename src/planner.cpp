@@ -34,9 +34,9 @@ Planner::Planner() {
   smoother_params.max_curvature = 1.f/(Constants::r * 1.1); //should be 1/min_radius 0.2
   smoother_params.curvature_weight = 0.0; // 30.0;
   smoother_params.distance_weight = 0.5; //1.0; // 10.0;
-  smoother_params.smooth_weight = 0.1; //0.3; // 10; //0.0 //100
+  smoother_params.smooth_weight = 0.2; //0.3; // 10; //0.0 //100
   smoother_params.obstacle_weight = 0.1; //0.2;  // 5 // 25; //0.025 //100
-  smoother_params.voronoi_weight = 0.2; //0.5;  // 5; //0.025 //100
+  smoother_params.voronoi_weight = 0.3; //0.5;  // 5; //0.025 //100
   smoother_params.alpha = 0.1; //0.1
   smoother.initialize(params);
 };
@@ -227,10 +227,10 @@ void Planner::plan() {
     // SMOOTHER 1
     // smoother.smoothPath(voronoiDiagram);
     // SMOOTHER 2
-    smoother.smooth(voronoiDiagram, smoother_params, configurationSpace);
-    t1 = ros::Time::now();
-    ros::Duration d_smooth(t1 - t0);
-    std::cout << "SMOOTHING TIME in ms: " << d_smooth * 1000 << std::endl;
+    // smoother.smooth(voronoiDiagram, smoother_params, configurationSpace);
+    // t1 = ros::Time::now();
+    // ros::Duration d_smooth(t1 - t0);
+    // std::cout << "SMOOTHING TIME in ms: " << d_smooth * 1000 << std::endl;
 
     // _____________________________________________
     // PUBLISH THE RESULTS OF THE SEARCH -- SMOOTHED

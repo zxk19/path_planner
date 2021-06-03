@@ -8,6 +8,7 @@ using namespace HybridAStar;
 
 float aStar(Node2D& start, Node2D& goal, Node2D* nodes2D, int width, int height, CollisionDetection& configurationSpace, Visualize& visualization);
 void updateH(Node3D& start, const Node3D& goal, Node2D* nodes2D, int width, int height, CollisionDetection& configurationSpace, Visualize& visualization);
+void updateH_graph(Node3D& start, const Node3D& goal, Node2D* nodes2D, int width, int height, CollisionDetection& configurationSpace, Visualize& visualization);
 Node3D* dubinsShot(Node3D& start, const Node3D& goal, CollisionDetection& configurationSpace);
 Node3D* ReedsSheppShot(Node3D& start, const Node3D& goal, CollisionDetection& configurationSpace);
 
@@ -59,8 +60,14 @@ Node3D* Algorithm::hybridAStar(Node3D& start,
           > priorityQueue;
   priorityQueue O;
 
-  // update h value
-  updateH(start, goal, nodes2D, width, height, configurationSpace, visualization);
+  if (Constants::graph_guided){
+    updateH_graph(start, goal, nodes2D, width, height, configurationSpace, visualization);
+  }
+  else{
+    // update h value
+    updateH(start, goal, nodes2D, width, height, configurationSpace, visualization);
+  }
+
   // mark start as open
   start.open();
   // push on priority queue aka open list
@@ -207,7 +214,13 @@ Node3D* Algorithm::hybridAStar(Node3D& start,
               if (!nodes3D[iSucc].isOpen() || newG < nodes3D[iSucc].getG() || iPred == iSucc) {
 
                 // calculate H value
-                updateH(*nSucc, goal, nodes2D, width, height, configurationSpace, visualization);
+                  if (Constants::graph_guided){
+                    updateH_graph(*nSucc, goal, nodes2D, width, height, configurationSpace, visualization);
+                  }
+                  else{
+                    updateH(*nSucc, goal, nodes2D, width, height, configurationSpace, visualization);
+                  }
+                //updateH(*nSucc, goal, nodes2D, width, height, configurationSpace, visualization);
 
                 // if the successor is in the same cell but the C value is larger
                 if (iPred == iSucc && nSucc->getC() > nPred->getC() + Constants::tieBreaker) {
@@ -424,6 +437,117 @@ void updateH(Node3D& start, const Node3D& goal, Node2D* nodes2D, int width, int 
   // return the maximum of the heuristics, making the heuristic admissable
   start.setH(std::max(reedsSheppCost, std::max(dubinsCost, twoDCost)));
 }
+
+
+//###################################################
+//                 COST TO GO for GRAPH_GUIDED SEARCH
+//###################################################
+void updateH_graph(Node3D& start, const Node3D& goal, Node2D* nodes2D, int width, int height, CollisionDetection& configurationSpace, Visualize& visualization) {
+  float dubinsCost = 0;
+  float reedsSheppCost = 0;
+  //float twoDCost = 0;
+  //float twoDoffset = 0;
+  float non_graph_cost = 0;
+  float graphCost = 0;
+
+  // ompl::base::DubinsStateSpace dubinsPath(Constants::r);
+  // State* dbStart = (State*)dubinsPath.allocState();
+  // State* dbEnd = (State*)dubinsPath.allocState();
+  // dbStart->setXY(start.getX(), start.getY());
+  // dbStart->setYaw(start.getT());
+  // dbEnd->setXY(goal.getX(), goal.getY());
+  // dbEnd->setYaw(goal.getT());
+  // dubinsCost = dubinsPath.distance(dbStart, dbEnd);
+
+
+  // if dubins heuristic is activated calculate the shortest path
+  // constrained without obstacles
+  if (Constants::dubins) {
+    ompl::base::DubinsStateSpace dubinsPath(Constants::r);
+    State* dbStart = (State*)dubinsPath.allocState();
+    State* dbEnd = (State*)dubinsPath.allocState();
+    dbStart->setXY(start.getX(), start.getY());
+    dbStart->setYaw(start.getT());
+    dbEnd->setXY(goal.getX(), goal.getY());
+    dbEnd->setYaw(goal.getT());
+    dubinsCost = dubinsPath.distance(dbStart, dbEnd);
+  }
+
+  // if reversing is active use reeds shepp heuristic
+  // constrained without obstacles
+  if (Constants::reverse && !Constants::dubins) {
+    //ros::Time t0 = ros::Time::now();
+    ompl::base::ReedsSheppStateSpace reedsSheppPath(Constants::r);
+    State* rsStart = (State*)reedsSheppPath.allocState();
+    State* rsEnd = (State*)reedsSheppPath.allocState();
+    rsStart->setXY(start.getX(), start.getY());
+    rsStart->setYaw(start.getT());
+    rsEnd->setXY(goal.getX(), goal.getY());
+    rsEnd->setYaw(goal.getT());
+    reedsSheppCost = reedsSheppPath.distance(rsStart, rsEnd);
+    //ros::Time t1 = ros::Time::now();
+    //ros::Duration d(t1 - t0);
+    //std::cout << "calculated Reed-Sheep Heuristic in ms: " << d * 1000 << std::endl;
+    //std::cout << "Reed-Sheep Cost: " << reedsSheppCost << std::endl;
+  }
+
+  // // if twoD heuristic is activated determine shortest path
+  // // unconstrained with obstacles
+  // if (Constants::twoD && !nodes2D[(int)start.getY() * width + (int)start.getX()].isDiscovered()) {
+  //   //ros::Time t0 = ros::Time::now();
+  //   // create a 2d start node
+  //   Node2D start2d(start.getX(), start.getY(), 0, 0, nullptr);
+  //   // create a 2d goal node
+  //   Node2D goal2d(goal.getX(), goal.getY(), 0, 0, nullptr);
+  //   // run 2d astar and return the cost of the cheapest path for that node
+  //   nodes2D[(int)start.getY() * width + (int)start.getX()].setG(aStar(goal2d, start2d, nodes2D, width, height, configurationSpace, visualization));
+  //   //ros::Time t1 = ros::Time::now();
+  //   //ros::Duration d(t1 - t0);
+  //   //std::cout << "calculated 2D Heuristic in ms: " << d * 1000 << std::endl;
+  // }
+
+  // if (Constants::twoD) {
+  //   // offset for same node in cell
+  //   twoDoffset = sqrt(((start.getX() - (long)start.getX()) - (goal.getX() - (long)goal.getX())) * ((start.getX() - (long)start.getX()) - (goal.getX() - (long)goal.getX())) +
+  //                     ((start.getY() - (long)start.getY()) - (goal.getY() - (long)goal.getY())) * ((start.getY() - (long)start.getY()) - (goal.getY() - (long)goal.getY())));
+  //   twoDCost = nodes2D[(int)start.getY() * width + (int)start.getX()].getG() - twoDoffset;
+  //   //std::cout << "2D offset: " << twoDoffset << std::endl;
+  // }
+
+  // non_graph_cost = std::max(reedsSheppCost, std::max(dubinsCost, twoDCost));
+
+  non_graph_cost = std::max(reedsSheppCost, dubinsCost);
+
+  float temp_x = 0;
+  float temp_y = 0;
+
+  temp_x = std::abs(start.getX() - (float)7.5);
+  temp_x = std::min(temp_x, std::abs(start.getX() - (float)145.5));
+
+  temp_y = std::abs(start.getY() - (float)7.5);
+  temp_y = std::min(temp_y, std::abs(start.getY() - (float)19));
+  temp_y = std::min(temp_y, std::abs(start.getY() - (float)28));
+  temp_y = std::min(temp_y, std::abs(start.getY() - (float)41.5));
+
+  graphCost = std::min(temp_x, temp_y);
+
+  //start.setH(std::max(non_graph_cost, (100*graphCost)));
+  //start.setH(100*graphCost);
+
+  // for graph_guided, tune these numbers
+  if (graphCost >= 3) {
+    start.setH(non_graph_cost + 2.5 * graphCost);
+  }
+  else{
+    start.setH(non_graph_cost);
+  }
+
+  //start.setH(non_graph_cost);
+
+  // return the maximum of the heuristics, making the heuristic admissable
+  //start.setH(std::max(reedsSheppCost, std::max(dubinsCost, twoDCost)));
+}
+
 
 //###################################################
 //                                        DUBINS SHOT

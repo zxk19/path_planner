@@ -10,10 +10,17 @@ const int Node3D::dir = 6;
 //const float Node3D::dx[] = { 0.62832,   0.62717,   0.62717};
 //const float Node3D::dt[] = { 0,         0.10472,   -0.10472};
 
+// // R = 6, 6.75 DEG
+// const float Node3D::dy[] = { 0,        -0.0415893,  0.0415893};
+// const float Node3D::dx[] = { 0.7068582,   0.705224,   0.705224};
+// //const float Node3D::dt[] = { 0,         0.1178097,   -0.1178097};
+// const float Node3D::dt[] = { 0,         -0.1178097,   0.1178097};
+
 // R = 6, 6.75 DEG
-const float Node3D::dy[] = { 0,        -0.0415893,  0.0415893};
-const float Node3D::dx[] = { 0.7068582,   0.705224,   0.705224};
-const float Node3D::dt[] = { 0,         0.1178097,   -0.1178097};
+const float Node3D::dy[] = { 0,        -0.0830342,  0.0830342};
+const float Node3D::dx[] = { 0.7068582,   0.7015527,   0.7015527};
+//const float Node3D::dt[] = { 0,         0.1178097,   -0.1178097};
+const float Node3D::dt[] = { 0,         -0.1178097,   0.1178097};
 
 // R = 3, 6.75 DEG
 //const float Node3D::dy[] = { 0,        -0.0207946, 0.0207946};
@@ -39,7 +46,12 @@ bool Node3D::isInRange(const Node3D& goal) const {
   int random = rand() % 10 + 1;
   float dx = std::abs(x - goal.x) / random;
   float dy = std::abs(y - goal.y) / random;
-  return (dx * dx) + (dy * dy) < Constants::dubinsShotDistance;
+  if(Constants::graph_guided){
+    return (dx * dx) + (dy * dy) < Constants::dubinsShotDistance_graph;
+  }
+  else{
+    return (dx * dx) + (dy * dy) < Constants::dubinsShotDistance;
+  }
 }
 
 //###################################################
@@ -75,28 +87,82 @@ void Node3D::updateG() {
   if (prim < 3) {
     // penalize turning
     if (pred->prim != prim) {
-      // penalize change of direction
-      if (pred->prim > 2) {
-        g += dx[0] * Constants::penaltyTurning * Constants::penaltyCOD;
-      } else {
-        g += dx[0] * Constants::penaltyTurning;
+      // when driving straight
+      if (prim == 0) {
+        if (pred->prim > 2) { // penalize change of direction
+          g += dx[0] * Constants::penaltyTurning * Constants::penaltyCOD;
+        } else {
+          g += dx[0] * Constants::penaltyTurning;
+        }
       }
+      // when driving left or right
+      if (prim == 1 || prim == 2) {
+        if (pred->prim > 2) { // penalize change of direction
+          g += dx[0] * Constants::penaltyTurning * Constants::penaltyCOD;
+        } else {
+          g += dx[0] * Constants::penaltyTurning;
+        }
+      }
+      
     } else {
-      g += dx[0];
+      // when driving straight
+      if (prim == 0) {
+        g += dx[0];
+      }
+      // when driving left or right
+      if (prim == 1 || prim == 2) {
+        g += dx[0];
+      }      
     }
   }
   // reverse driving
   else {
     // penalize turning and reversing
     if (pred->prim != prim) {
-      // penalize change of direction
-      if (pred->prim < 3) {
-        g += dx[0] * Constants::penaltyTurning * Constants::penaltyReversing * Constants::penaltyCOD;
-      } else {
-        g += dx[0] * Constants::penaltyTurning * Constants::penaltyReversing;
+      // when driving straight
+      if (prim == 3) {
+        if (pred->prim < 3) { // penalize change of direction
+          g += dx[0] * Constants::penaltyTurning * Constants::penaltyReversing * Constants::penaltyCOD;
+        } else {
+          g += dx[0] * Constants::penaltyReversing * Constants::penaltyTurning;
+        }
       }
+      if (prim == 4 || prim == 5) {
+        if (pred->prim < 3) {
+          g += dx[0] * Constants::penaltyReversing * Constants::penaltyTurning * Constants::penaltyCOD;
+        } else {
+          g += dx[0] * Constants::penaltyReversing * Constants::penaltyTurning;
+        }
+      }
+
     } else {
-      g += dx[0] * Constants::penaltyReversing;
+      if (prim == 3) {
+        g += dx[0] * Constants::penaltyReversing;
+      }
+      if (prim == 4 || prim == 5) {
+        g += dx[0] * Constants::penaltyReversing;
+      }      
+    }
+  }
+
+  // for graph_guided planning
+  if (Constants::graph_guided) {
+    float temp_x = 0;
+    float temp_y = 0;
+    float edge_dist = 0;
+
+    temp_x = std::abs(x - (float)7.5);
+    temp_x = std::min(temp_x, std::abs(x - (float)145.5));
+
+    temp_y = std::abs(y - (float)7.5);
+    temp_y = std::min(temp_y, std::abs(y - (float)19));
+    temp_y = std::min(temp_y, std::abs(y - (float)28));
+    temp_y = std::min(temp_y, std::abs(y - (float)41.5));
+
+    edge_dist = std::min(temp_x, temp_y);
+
+    if (edge_dist >= 1) {
+      g += edge_dist;
     }
   }
 }

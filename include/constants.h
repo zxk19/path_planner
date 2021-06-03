@@ -45,6 +45,8 @@ static const bool dubinsShot = false;
 static const bool ReedsSheppShot = true;
 /// A flag to toggle the Dubin's heuristic, this should be false, if reversing is enabled (true = on; false = off)
 static const bool dubins = false;
+/// A flag to toggle the graph_guided heuristic (true = on; false = off)
+static const bool graph_guided = true;
 /*!
    \var static const bool dubinsLookup
    \brief A flag to toggle the Dubin's heuristic via lookup, potentially speeding up the search by a lot
@@ -91,13 +93,15 @@ static const float tieBreaker = 0.01;
 /// [#] --- A factor to ensure admissibility of the holonomic with obstacles heuristic
 static const float factor2D = sqrt(5) / sqrt(2) + 1;
 /// [#] --- A movement cost penalty for turning (choosing non straight motion primitives)
-static const float penaltyTurning = 1.05;
+static const float penaltyTurning = 1.05;  // 1.05
 /// [#] --- A movement cost penalty for reversing (choosing motion primitives > 2)
-static const float penaltyReversing = 2.0; //2.1
+static const float penaltyReversing = 2.0; // 2.0
 /// [#] --- A movement cost penalty for change of direction (changing from primitives < 3 to primitives > 2)
-static const float penaltyCOD = 2.0;
+static const float penaltyCOD = 4.0;       // 2.0  3.0 original 2.1  // for graph_guided, tune these numbers
 /// [m] --- The distance to the goal when the analytical solution (Dubin's shot) first triggers
-static const float dubinsShotDistance = 100;
+static const float dubinsShotDistance = 100; // for free space planning
+/// [m] --- The distance to the goal when the analytical solution (Dubin's shot) first triggers
+static const float dubinsShotDistance_graph = 10; // for graph_guided planning 4
 /// [m] --- The step size for the analytical solution (Dubin's shot) primarily relevant for collision checking
 static const float dubinsStepSize = 1;
 
