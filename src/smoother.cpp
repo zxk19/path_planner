@@ -24,7 +24,7 @@ void Smoother::smoothPath(DynamicVoronoi& voronoi) {
 
     Vector2D xi(newPath[i].getX(), newPath[i].getY());
       
-    std::cout << "**************Cusp: " << newPath[i].getPrim() << std::endl;
+    //std::cout << "**************Cusp: " << newPath[i].getPrim() << std::endl;
 
   }
 
