@@ -37,14 +37,14 @@ static const bool manual = true;
 static const bool visualization = true && manual;
 /// A flag for the visualization of 2D nodes (true = on; false = off)
 static const bool visualization2D = true && manual;
-/// A flag to toggle reversing (true = on; false = off)
-static const bool reverse = true;
 /// A flag to toggle the connection of the path via Dubin's shot (true = on; false = off)
 static const bool dubinsShot = false;
 /// A flag to toggle the connection of the path via Reeds Shepp's shot (true = on; false = off)
 static const bool ReedsSheppShot = true;
 /// A flag to toggle the Dubin's heuristic, this should be false, if reversing is enabled (true = on; false = off)
 static const bool dubins = false;
+/// A flag to toggle Reeds Shepp heuristic (true = on; false = off)
+static const bool reverse = true;
 /// A flag to toggle the graph_guided heuristic (true = on; false = off)
 static const bool graph_guided = true;
 /*!
@@ -68,7 +68,7 @@ static const double width = 1.75 + 2 * bloating;
 /// [m] --- The length of the vehicle
 static const double length = 2.65 + 2 * bloating;
 /// [m] --- The minimum turning radius of the vehicle
-static const float r = 6;
+static const float r = 5.3;   // 6;
 /// [m] --- The number of discretizations in heading
 static const int headings = 72;
 /// [°] --- The discretization value of the heading (goal condition)
@@ -93,13 +93,15 @@ static const float tieBreaker = 0.01;
 /// [#] --- A factor to ensure admissibility of the holonomic with obstacles heuristic
 static const float factor2D = sqrt(5) / sqrt(2) + 1;
 /// [#] --- A movement cost penalty for turning (choosing non straight motion primitives)
-static const float penaltyTurning = 1.05;  // 1.05
+static const float penaltyTurning = 0.1; //0.1;  // 1.05
+/// [#] --- A movement cost penalty for zig-zaging (penalize steering angle changes)
+static const float penaltyZigzag = 0.5; //0.5;  //5.0
 /// [#] --- A movement cost penalty for reversing (choosing motion primitives > 2)
-static const float penaltyReversing = 2.0; // 2.0
+static const float penaltyReversing = 1.5; //1.5; // 2.0
 /// [#] --- A movement cost penalty for change of direction (changing from primitives < 3 to primitives > 2)
-static const float penaltyCOD = 5.0;       // 2.0  3.0 original 2.1  // for graph_guided, tune these numbers
+static const float penaltyCOD = 2.0;       // 2.0  3.0 original 2.1  // for graph_guided, tune these numbers
 /// [m] --- The distance to the goal when the analytical solution (Dubin's shot) first triggers
-static const float dubinsShotDistance = 100; // for free space planning
+static const float dubinsShotDistance = 50; // for free space planning 100
 /// [m] --- The distance to the goal when the analytical solution (Dubin's shot) first triggers
 static const float dubinsShotDistance_graph = 10; // for graph_guided planning 4
 /// [m] --- The step size for the analytical solution (Dubin's shot) primarily relevant for collision checking

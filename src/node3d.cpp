@@ -5,7 +5,16 @@ using namespace HybridAStar;
 // CONSTANT VALUES
 // possible directions
 const int Node3D::dir = 6;
+
 // possible movements
+
+const float step_length = 1.5;
+
+const float Node3D::dy[] = { 0,        -Constants::r * (1 - std::cos(step_length/Constants::r)),  Constants::r * (1 - std::cos(step_length/Constants::r))};
+const float Node3D::dx[] = { step_length,   Constants::r * std::sin(step_length/Constants::r),   Constants::r * std::sin(step_length/Constants::r)};
+const float Node3D::dt[] = { 0,         -step_length/Constants::r,   step_length/Constants::r};
+
+
 //const float Node3D::dy[] = { 0,        -0.032869,  0.032869};
 //const float Node3D::dx[] = { 0.62832,   0.62717,   0.62717};
 //const float Node3D::dt[] = { 0,         0.10472,   -0.10472};
@@ -16,11 +25,11 @@ const int Node3D::dir = 6;
 // //const float Node3D::dt[] = { 0,         0.1178097,   -0.1178097};
 // const float Node3D::dt[] = { 0,         -0.1178097,   0.1178097};
 
-// R = 6, 6.75 DEG
-const float Node3D::dy[] = { 0,        -0.0830342,  0.0830342};
-const float Node3D::dx[] = { 0.7068582,   0.7015527,   0.7015527};
-//const float Node3D::dt[] = { 0,         0.1178097,   -0.1178097};
-const float Node3D::dt[] = { 0,         -0.1178097,   0.1178097};
+// // R = 6, 6.75 DEG
+// const float Node3D::dy[] = { 0,        -0.0830342,  0.0830342};
+// const float Node3D::dx[] = { 0.7068582,   0.7015527,   0.7015527};
+// //const float Node3D::dt[] = { 0,         0.1178097,   -0.1178097};
+// const float Node3D::dt[] = { 0,         -0.1178097,   0.1178097};
 
 // R = 3, 6.75 DEG
 //const float Node3D::dy[] = { 0,        -0.0207946, 0.0207946};
@@ -85,64 +94,43 @@ Node3D* Node3D::createSuccessor(const int i) {
 void Node3D::updateG() {
   // forward driving
   if (prim < 3) {
-    // penalize turning
-    if (pred->prim != prim) {
-      // when driving straight
-      if (prim == 0) {
-        if (pred->prim > 2) { // penalize change of direction
-          g += dx[0] * Constants::penaltyTurning * Constants::penaltyCOD;
-        } else {
-          g += dx[0] * Constants::penaltyTurning;
-        }
-      }
-      // when driving left or right
-      if (prim == 1 || prim == 2) {
-        if (pred->prim > 2) { // penalize change of direction
-          g += dx[0] * Constants::penaltyTurning * Constants::penaltyCOD;
-        } else {
-          g += dx[0] * Constants::penaltyTurning;
-        }
-      }
+
+    g += dx[0];
+
+    // penalize zig-zaging
+    if (pred->prim != prim) {    
+      g += dx[0] * Constants::penaltyZigzag;
       
-    } else {
-      // when driving straight
-      if (prim == 0) {
-        g += dx[0];
+      // penalize change of direction
+      if (pred->prim > 2) {
+        g += dx[0] * Constants::penaltyCOD;
       }
-      // when driving left or right
-      if (prim == 1 || prim == 2) {
-        g += dx[0];
-      }      
     }
+
+    // penalize non-straight driving
+    if (prim == 1 || prim == 2) {
+      g += dx[0] * Constants::penaltyTurning;
+    } 
   }
   // reverse driving
   else {
-    // penalize turning and reversing
-    if (pred->prim != prim) {
-      // when driving straight
-      if (prim == 3) {
-        if (pred->prim < 3) { // penalize change of direction
-          g += dx[0] * Constants::penaltyTurning * Constants::penaltyReversing * Constants::penaltyCOD;
-        } else {
-          g += dx[0] * Constants::penaltyReversing * Constants::penaltyTurning;
-        }
-      }
-      if (prim == 4 || prim == 5) {
-        if (pred->prim < 3) {
-          g += dx[0] * Constants::penaltyReversing * Constants::penaltyTurning * Constants::penaltyCOD;
-        } else {
-          g += dx[0] * Constants::penaltyReversing * Constants::penaltyTurning;
-        }
-      }
 
-    } else {
-      if (prim == 3) {
-        g += dx[0] * Constants::penaltyReversing;
+    g += dx[0] * Constants::penaltyReversing;
+
+    // penalize zig-zaging
+    if (pred->prim != prim) {    
+      g += dx[0] * Constants::penaltyZigzag;
+      
+      // penalize change of direction
+      if (pred->prim < 3) {
+        g += dx[0] * Constants::penaltyCOD;
       }
-      if (prim == 4 || prim == 5) {
-        g += dx[0] * Constants::penaltyReversing;
-      }      
     }
+
+    // penalize non-straight driving
+    if (prim == 4 || prim == 5) {
+      g += dx[0] * Constants::penaltyTurning;
+    } 
   }
 
   // for graph_guided planning
